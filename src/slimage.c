@@ -131,21 +131,39 @@ Frame ImageResize(Frame src, float widthRatio, float heightRatio, INT32 width, I
 INT32 ImageShow(Frame frame)
 {
     GLFWwindow* window;
-    
+    GLFWmonitor **monitor;
+    const GLFWvidmode *mode;
+    Frame RGBFrame;
+    GLuint programID;
+    unsigned int texture;
+    int count, width, height;
+
+    float vertices[] = {
+        // positions          // colors           // texture coords
+         1.0f,   1.0f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
+         1.0f,  -1.0f, 0.0f,   0.0f,  1.0f, 0.0f,  1.0f, 0.0f,  // bottom right
+        -1.0f,  -1.0f, 0.0f,   0.0f,  0.0f, 1.0f,  0.0f, 0.0f,  // bottom left
+        -1.0f,   1.0f, 0.0f,   1.0f,  1.0f, 0.0f,  0.0f, 1.0f   // top left 
+    };
+    unsigned int indices[] = {
+        0, 1, 3, // first triangle
+        1, 2, 3  // second triangle
+    };
+
     if (!glfwInit())
     {
         exit(EXIT_FAILURE);
     }
     
-    int count = 1;
-    GLFWmonitor **monitor = glfwGetMonitors(&count);
-    const GLFWvidmode *mode = glfwGetVideoMode(monitor[0]);
+    count = 1;
+    monitor = glfwGetMonitors(&count);
+    mode = glfwGetVideoMode(monitor[0]);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    int width  = frame->cols;
-    int height = frame->row;
+    width  = frame->cols;
+    height = frame->row;
 
     if (width > mode->width && slMax(width, height) == width)
     {
@@ -158,7 +176,7 @@ INT32 ImageShow(Frame frame)
         width *=  ((float)height / frame->row);
     }
 
-    Frame RGBFrame = slDefaultToRGBA(frame);
+    RGBFrame = slDefaultToRGBA(frame);
 
     window = glfwCreateWindow(width, height, "Imagination", NULL, NULL);
     glfwSetWindowPos(window, (mode->width - width) / 2, (mode->height - height) / 2);
@@ -180,18 +198,7 @@ INT32 ImageShow(Frame frame)
         printf("Failed to initialize GLAD");
         return -1;
     }
-
-    float vertices[] = {
-        // positions          // colors           // texture coords
-         1.0f,   1.0f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
-         1.0f,  -1.0f, 0.0f,   0.0f,  1.0f, 0.0f,  1.0f, 0.0f,  // bottom right
-        -1.0f,  -1.0f, 0.0f,   0.0f,  0.0f, 1.0f,  0.0f, 0.0f,  // bottom left
-        -1.0f,   1.0f, 0.0f,   1.0f,  1.0f, 0.0f,  0.0f, 1.0f   // top left 
-    };
-    unsigned int indices[] = {
-        0, 1, 3, // first triangle
-        1, 2, 3  // second triangle
-    };
+    
     unsigned int VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -216,8 +223,6 @@ INT32 ImageShow(Frame frame)
     glEnableVertexAttribArray(2);
 
     // load and create a texture 
-    unsigned int texture;
-
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     // set the texture wrapping parameters
@@ -230,7 +235,7 @@ INT32 ImageShow(Frame frame)
     glGenerateMipmap(GL_TEXTURE_2D);
     slFrameDeallocator(RGBFrame);
     // Create and compile our GLSL program from the shaders
-    GLuint programID = LoadShaders(NULL, NULL);
+    programID = LoadShaders(NULL, NULL);
 
     glUniform1i(glGetUniformLocation(programID, "imageTexture"), 0);
     while (!glfwWindowShouldClose(window))
