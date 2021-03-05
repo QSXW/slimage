@@ -48,7 +48,7 @@ RawJpeg * RawJpegRead(Stream stream)
 
                 case SLJPEG_CODE_SOF0:
                 case SLJPEG_CODE_SOF2:
-                    printf("\n\nWas called SOF0\n\n");
+                    // printf("\n\nWas called SOF0\n\n");
                     slRawJpegGetSegmentLength(stream, segmentLen);
                     slRawJpegReadSegment(SOF0, jpegNode->_SOF, segmentLen, stream);
                     break;
@@ -384,14 +384,14 @@ INT32 SLJpegHuffTableBinder(slJpeg *jpeg, DHT *const *dhts)
                     length += dht->bits[cj++];
                 }
                 tableIndex = 0x0f & dht->selector;
-                printf("table index = %d\n 0xf0 & dht->selector = %d\n", tableIndex, (0xf0 & dht->selector) >> 4);
+                // printf("table index = %d\n 0xf0 & dht->selector = %d\n", tableIndex, (0xf0 & dht->selector) >> 4);
                 if (0x10 & dht->selector)
                 {
                     if (jpeg->acTable[tableIndex])
                     {
                         slJpegHuffTableDeallocator(jpeg->acTable[tableIndex]);
                     }
-                    DisplayIntHexMatrix(dht->values, length, "dht\n", 16);
+                    // DisplayIntHexMatrix(dht->values, length, "dht\n", 16);
                     jpeg->acTable[tableIndex] = slJpegHuffTableAllocator(dht->bits, dht->values, length);
                     slGenerateDecoderTable(jpeg->acTable[tableIndex]);
                 }
@@ -401,7 +401,7 @@ INT32 SLJpegHuffTableBinder(slJpeg *jpeg, DHT *const *dhts)
                     {
                         slJpegHuffTableDeallocator(jpeg->dcTable[tableIndex]);
                     }
-                    DisplayIntHexMatrix(dht->values, length, "dht\n", 16);
+                    // DisplayIntHexMatrix(dht->values, length, "dht\n", 16);
                     jpeg->dcTable[tableIndex] = slJpegHuffTableAllocator(dht->bits, dht->values, length);
                     slGenerateDecoderTable(jpeg->dcTable[tableIndex]);
                 }
@@ -426,13 +426,13 @@ JpegQuantizationTable *slJpegQuantizationTableAllocator(INT32 precision, BYTE *e
         SLEXCEPTION_NULLPOINTER_REFERENCE,
         NULL
     );
-    DisplayIntMatrix(elements, 64, "byte\n", 8);
+    // DisplayIntMatrix(elements, 64, "byte\n", 8);
     memset(jpegQuantizationTable, 0x0, sizeof(JpegQuantizationTable) + *length * sizeof(float));
     for (i = 0; i < SLJPEG_SEQUENTIAL_BLOCK_SIZE; i++)
     {
         jpegQuantizationTable->elements[i] = (float)*elements; elements += offset;
     }
-    DisplayFloatMatrix(jpegQuantizationTable->elements, 64, "\n", 8);
+    // DisplayFloatMatrix(jpegQuantizationTable->elements, 64, "\n", 8);
     jpegQuantizationTable->precision = precision ? 10 : 8;
 
     return jpegQuantizationTable;
