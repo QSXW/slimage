@@ -1,23 +1,5 @@
 #include <slframe.h>
 
-INT32 slDataTypeSize(INT32 flag)
-{
-    INT32 dataTypeSize[]= {
-        0,
-        sizeof(BYTE),
-        sizeof(INT8),
-        sizeof(INT16),
-        sizeof(WORD),
-        sizeof(INT32),
-        sizeof(INT64),
-        sizeof(DWORD),
-        sizeof(QWORD),
-        sizeof(FLOAT32),
-        sizeof(FLOAT64),
-    };
-    return dataTypeSize[flag];
-}
-
 Frame slFrameAllocator(INT32 x, INT32 y, INT32 z, INT32 dtype, void *data)
 {
     Frame frame;
@@ -39,24 +21,20 @@ Frame slFrameAllocator(INT32 x, INT32 y, INT32 z, INT32 dtype, void *data)
         SLEXCEPTION_MALLOC_FAILED,
         NULL
     );
-    if (!dataSize)
-    {
+    if (!dataSize) {
         memset(frame, 0x0, sizeof(slFrame));
     }
-    else
-    {
+    else {
         frame->size  = size;
         frame->dims  = z;
         frame->row   = y;
         frame->cols  = x;
         frame->dsize = mallocSize;
         frame->dtype = dtype;
-        if (data)
-        {
+        if (data) {
             memcpy(frame->data, data, dataSize);
         }
-        else
-        {
+        else {
             memset(frame->data, 0x0, mallocSize);
         }
     }
@@ -70,24 +48,23 @@ size_t slCompareFrame(Frame frameSt, Frame frameNd)
     register BYTE *ptrnd;
     size_t i, dataSize;
 
-    if ((frameSt->row == frameNd->row)
-         && (frameSt->cols == frameNd->cols)
-         && (frameSt->dims == frameNd->dims)
-         && (frameSt->dtype == frameNd->dtype))
-    {
-        ptrst  = frameSt->data;
+    if (
+           (frameSt->row == frameNd->row)
+        && (frameSt->cols == frameNd->cols)
+        && (frameSt->dims == frameNd->dims)
+        && (frameSt->dtype == frameNd->dtype)
+    ){
+        ptrst = frameSt->data;
         ptrnd = frameNd->data;
-        
-        for (i = 0, dataSize = (size_t)frameSt->size; i < dataSize; i++)
-        {
-            if (*ptrst++ != *ptrnd++)
-            {
+        for (
+            i = 0, dataSize = (size_t)frameSt->size;
+            i < dataSize; i++
+        ) {
+            if (*ptrst++ != *ptrnd++) {
                 return i;
             }
         }
-    }
-    else
-    {
+    } else {
         return -1;
     }
 
