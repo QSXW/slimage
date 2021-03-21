@@ -32,11 +32,6 @@ typedef struct _slFrame  {
     BYTE        data[0];
 } *Frame, slFrame;
 
-INT32
-slDataTypeSize(
-    INT32 flag
-    );
-
 Frame
 slFrameAllocator(
     INT32 x,
@@ -51,6 +46,21 @@ slCompareFrame(
     Frame frameNd
     );
 
+static const size_t slFrameDataTypeSize[]= {
+        0,
+        sizeof(BYTE),
+        sizeof(INT8),
+        sizeof(INT16),
+        sizeof(WORD),
+        sizeof(INT32),
+        sizeof(INT64),
+        sizeof(DWORD),
+        sizeof(QWORD),
+        sizeof(FLOAT32),
+        sizeof(FLOAT64),
+};
+
+#define slDataTypeSize(dtype) slFrameDataTypeSize[(dtype)]
 #define slFrameDeallocator(frame) slReleaseAllocatedMemory(frame)
 #define slRGBToFrameBinder(R, G, B, FRAME, offset) do { R = ((FRAME)->data); G = (R) + (((FRAME)->size) * offset); B = (G) + (((FRAME)->size) * offset); } while (0)
 
