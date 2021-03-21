@@ -8,23 +8,26 @@
 #include <stdint.h>
 #include <stddef.h>
 
-typedef signed char     INT8;
-typedef signed short    INT16;
-typedef signed int      INT32;
-typedef signed long long int INT64;
-
-typedef unsigned char       BYTE;
-typedef unsigned short      WORD;
-typedef unsigned long long  QWORD;
-
-typedef float FLOAT32;
-typedef double FLOAT64;
+typedef void (*caller)();
+typedef float                   FLOAT32;
+typedef double                  FLOAT64;
+typedef signed char             INT8;
+typedef signed short            INT16;
+typedef signed int              INT32;
+typedef signed long long int    INT64;
+typedef unsigned char           BYTE;
+typedef unsigned short          WORD;
+typedef unsigned long long      QWORD;
 
 #ifndef _WINDOWS_
-typedef unsigned long        DWORD;
-#define TRUE 1
-#define FALSE 0
+typedef unsigned long  DWORD;
 #endif /* _WINDOWS_ */
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
 
 typedef size_t          *GNERICPTR, GNERICPTR_NORMALIZED;
 
@@ -48,13 +51,7 @@ typedef struct _slRATIONAL {
     DWORD denominator; 
 } RATIONAL;
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#define slReleaseAllocatedMemory(pointer) do { if ((pointer)) { free(pointer); (pointer) = NULL; } } while (0)
+#define slAddressOf(variable) (size_t)*(void **)(&(variable))
+#define slReleaseAllocatedMemory(ptr) do { if ((ptr)) { free(ptr); (ptr) = NULL; } } while (0)
 
 #endif
