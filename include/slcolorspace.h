@@ -15,18 +15,15 @@ extern "C" {
 enum SLColorSpace {
     SLCOLORSPACE_RGB = 0,
     SLCOLORSPACE_YCC,
-    SLCOLORSPACE_CMYK 
+    SLCOLORSPACE_CMYK,
+    SLCOLORSPACE_HSI,
+    SLCOLORSPACE_HSV,
+    SLCOLORSPACE_LAB
 };
 
-#define SL_COLOR_RGB  0x01
-#define SL_COLOR_YUV  0x02
-#define SL_COLOR_CMYK 0x03
-
 // #define __CCIR_RECOMMEMDATION_709
+#ifndef __CCIR_RECOMMEMDATION_709
 #define __CCIR_RECOMMEMDATION_601_1
-
-#ifdef __CCIR_RECOMMEMDATION_709
-#undef __CCIR_RECOMMEMDATION_601_1
 #endif
 
 #ifdef __CCIR_RECOMMEMDATION_601_1
@@ -49,22 +46,6 @@ typedef struct _RGBA {
     BYTE b;
     BYTE a;
 } slRGBA;
-
-#if 0
-#define RGBTOYCVCR(DATATYPE, R, G, B, Y, CB, CR, beg, end, offset) while (beg < end) {\
-    *(Y) = SLIMG_LUMARED * (*((DATATYPE*)R)) +  SLIMG_LUMAGREEN * (*((DATATYPE*)G)) + SLIMG_LUMABLUE * (*((DATATYPE*)B));\
-    *(CB) = ((*((DATATYPE*)B)) - (*Y)) / (2 - 2 * SLIMG_LUMABLUE);\
-    *(CR) = ((*((DATATYPE*)R)) - (*Y)) / (2 - 2 * SLIMG_LUMARED);\
-    Y += offset; CB += offset; CR += offset; R += offset; G += offset; B += offset; beg++;\
-}
-
-#define YCVCRTORGB(DATATYPE, Y, CB, CR, R, G, B, beg, end, offset) while (beg < end) {\
-    *((DATATYPE*)R) = (*CR) * (2 - 2 * SLIMG_LUMARED) + (*Y);\
-    *((DATATYPE*)B) = (*CB) * (2 - 2 * SLIMG_LUMABLUE) + (*Y);\
-    *((DATATYPE*)G) = ((*Y) - SLIMG_LUMABLUE * (*((DATATYPE*)B)) - SLIMG_LUMARED * (*((DATATYPE*)R))) / SLIMG_LUMAGREEN;\
-     Y += offset; CB += offset; CR += offset; R += offset; G += offset; B += offset; beg++;\
-}
-#endif
 
 #define RGBTOYCBCR( R, G, B, Y, CB, CR, startIndex, endIndex, offset) while (startIndex < endIndex) {\
     *(Y) = SLIMG_LUMARED * (*(R)) +  SLIMG_LUMAGREEN * (*(G)) + SLIMG_LUMABLUE * (*(B));\
