@@ -30,10 +30,7 @@ typedef unsigned long  DWORD;
 #endif
 
 typedef size_t          *GNERICPTR, GNERICPTR_NORMALIZED;
-
 typedef char Bool;
-#define BYTE_MAX sizeof(byte)
-#define WORD_MAX sizeof(word)
 
 typedef struct _slBIT8 {
     BYTE b0 : 1;
