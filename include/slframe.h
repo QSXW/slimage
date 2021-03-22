@@ -10,25 +10,27 @@
 #include <malloc.h>
 #include <memory.h>
 
-#define SLFRAME_DTYPE_BYTE     0x1u
-#define SLFRAME_DTYPE_INT8     0x2u
-#define SLFRAME_DTYPE_INT16    0x3u
-#define SLFRAME_DTYPE_WORD     0x4u
-#define SLFRAME_DTYPE_INT32    0x5u
-#define SLFRAME_DTYPE_INT64    0x6u
-#define SLFRAME_DTYPE_DWORD    0x7u
-#define SLFRAME_DTYPE_QWORD    0x8u
-#define SLFRAME_DTYPE_FLOAT32  0x9u
-#define SLFRAME_DTYPE_FLOAT64  0x10u
+enum FrameDataType {
+    SLFRAME_DTYPE_BYTE =  0x1u,
+    SLFRAME_DTYPE_INT8,
+    SLFRAME_DTYPE_INT16,
+    SLFRAME_DTYPE_WORD,
+    SLFRAME_DTYPE_INT32,
+    SLFRAME_DTYPE_INT64,
+    SLFRAME_DTYPE_DWORD,
+    SLFRAME_DTYPE_QWORD,
+    SLFRAME_DTYPE_FLOAT32,
+    SLFRAME_DTYPE_FLOAT64
+};
 
 typedef struct _slFrame  {
     size_t      size;
+    size_t      dsize;
     INT32       colorSpace;
     INT32       dims;
     INT32       row;
     INT32       cols;
     INT32       dtype;
-    size_t      dsize;
     BYTE        data[0];
 } *Frame, slFrame;
 
