@@ -165,7 +165,7 @@ static const float slJPEG_CHROMINANCE_QT[] = {
 };
 
 #define PI 3.141592653589793238463
-#define SL_MM256_FLOAT_NUMBER 8
+#define SLJPEG_LENGTH_PER_M256  (sizeof(__m256) / sizeof(float))
 #define SLJPEG_SAMPLEPERLINE   8
 #define SLJPEG_LINE            8
 #define SLJPEG_SEQUENTIAL_BLOCK_SIZE      64
