@@ -10,18 +10,15 @@ float *slLevelDown(float *sequence, size_t size, int precision)
     float *sequenceptr;
     float level;
     size_t iter0;
-    INT32  iter1;
     
-    level =  (int)pow(2, precision - 1);
+    level =  (int)slPower2(precision - 1);
     ymm2 = _mm256_broadcast_ss(&level);
-    for (iter0 = 0, iter1 = 0, sequenceptr = sequence; iter0 < size; iter0 += SL_MM256_FLOAT_NUMBER, iter1 = 0)
+    for (iter0 = 0, sequenceptr = sequence; iter0 < size; iter0 += SLJPEG_LENGTH_PER_M256)
     {
         ymm0 = _mm256_loadu_ps(sequence + iter0);
         ymm1 = _mm256_sub_ps(ymm0, ymm2);
-        while (iter1 < SL_MM256_FLOAT_NUMBER)
-        {
-            *sequenceptr++ = ymm1[iter1++];
-        }
+        _mm256_storeu_ps(sequenceptr, ymm1);
+        sequenceptr += SLJPEG_LENGTH_PER_M256;
     }
 
     return sequence;
@@ -38,13 +35,13 @@ float *slLevelUp(float *sequence, size_t size, int precision)
     size_t iter0;
     INT32  iter1;
     
-    level =  (int)pow(2, precision - 1);
+    level =  (int)slPower2(precision - 1);
     ymm2 = _mm256_broadcast_ss(&level);
-    for (iter0 = 0, iter1 = 0, sequenceptr = sequence; iter0 < size; iter0 += SL_MM256_FLOAT_NUMBER, iter1 = 0)
+    for (iter0 = 0, iter1 = 0, sequenceptr = sequence; iter0 < size; iter0 += SLJPEG_LENGTH_PER_M256, iter1 = 0)
     {
         ymm0 = _mm256_loadu_ps(sequence + iter0);
         ymm1 = _mm256_add_ps(ymm0, ymm2);
-        while (iter1 < SL_MM256_FLOAT_NUMBER)
+        while (iter1 < SLJPEG_LENGTH_PER_M256)
         {
             *sequenceptr++ = slColourSampleClamp(ymm1[iter1], 0, 255);
             iter1++;
@@ -74,36 +71,34 @@ INT32 slFastForwardDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
     dstptr = dst;
     dctMapIndex = 0;
     c = 1.0 / sqrt(2.0);
-    sum = (float *)malloc(SL_MM256_FLOAT_NUMBER * sizeof(sum));
+    sum = (float *)malloc(SLJPEG_LENGTH_PER_M256 * sizeof(sum));
 
     ymm3 = _mm256_broadcast_ss(constants + 1);
     ymm4 = _mm256_broadcast_ss(constants + 2);
     ymm4[0] = c;
 
-    for (u = 0; u < SL_MM256_FLOAT_NUMBER; u++)
+    for (u = 0; u < SLJPEG_LENGTH_PER_M256; u++)
     {
-        memset(sum, 0x0, SL_MM256_FLOAT_NUMBER * sizeof(float));
+        memset(sum, 0x0, SLJPEG_LENGTH_PER_M256 * sizeof(float));
         ymm5 = _mm256_broadcast_ss(((u) ? (constants + 2) : (&c)));
-        for (v = 0; v < SL_MM256_FLOAT_NUMBER; v++)
+        for (v = 0; v < SLJPEG_LENGTH_PER_M256; v++)
         {
             ymm2 = _mm256_broadcast_ss(constants);
-            for (iter = 0, srcptr = src; iter < SL_MM256_FLOAT_NUMBER; iter++, dctMapIndex += SL_MM256_FLOAT_NUMBER, srcptr += offset)
+            for (iter = 0, srcptr = src; iter < SLJPEG_LENGTH_PER_M256; iter++, dctMapIndex += SLJPEG_LENGTH_PER_M256, srcptr += offset)
             {
                 ymm0 = _mm256_loadu_ps(srcptr);
                 ymm1 = _mm256_loadu_ps(SLDCTMAP + dctMapIndex);
                 ymm2 = _mm256_add_ps(_mm256_mul_ps(ymm0, ymm1), ymm2);
             }
-            for (iter = 0; iter < SL_MM256_FLOAT_NUMBER; iter++)
+            for (iter = 0; iter < SLJPEG_LENGTH_PER_M256; iter++)
             {
                 sum[v] += ymm2[iter];
             }
         }
         ymm6 = _mm256_loadu_ps(sum);
         ymm6 = _mm256_mul_ps(ymm5, _mm256_mul_ps(ymm4, _mm256_mul_ps(ymm6, ymm3)));
-        for (iter = 0; iter < SL_MM256_FLOAT_NUMBER; iter++)
-        {
-            *dstptr++ = ymm6[iter];
-        }
+        _mm256_storeu_ps(dstptr, ymm6);
+        dstptr += SLJPEG_LENGTH_PER_M256;
     }
     slReleaseAllocatedMemory(sum);
 
@@ -127,33 +122,31 @@ INT32 slFastInverseDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
 
     dstptr = dst;
     dctMapIndex = 0;
-    sum = (float *)malloc(SL_MM256_FLOAT_NUMBER * sizeof(sum));
+    sum = (float *)malloc(SLJPEG_LENGTH_PER_M256 * sizeof(sum));
 
     ymm3 = _mm256_broadcast_ss(constants + 1);
 
-    for (u = 0; u < SL_MM256_FLOAT_NUMBER; u++)
+    for (u = 0; u < SLJPEG_LENGTH_PER_M256; u++)
     {
-        memset(sum, 0x0, SL_MM256_FLOAT_NUMBER * sizeof(float));
-        for (v = 0; v < SL_MM256_FLOAT_NUMBER; v++)
+        memset(sum, 0x0, SLJPEG_LENGTH_PER_M256 * sizeof(float));
+        for (v = 0; v < SLJPEG_LENGTH_PER_M256; v++)
         {
             ymm2 = _mm256_broadcast_ss(constants);
-            for (iter = 0, srcptr = src; iter < SL_MM256_FLOAT_NUMBER; iter++, dctMapIndex += SL_MM256_FLOAT_NUMBER, srcptr += offset)
+            for (iter = 0, srcptr = src; iter < SLJPEG_LENGTH_PER_M256; iter++, dctMapIndex += SLJPEG_LENGTH_PER_M256, srcptr += offset)
             {
                 ymm0 = _mm256_loadu_ps(srcptr);
                 ymm1 = _mm256_loadu_ps(SLIDCTMAP + dctMapIndex);
                 ymm2 = _mm256_add_ps(_mm256_mul_ps(ymm0, ymm1), ymm2);
             }
-            for (iter = 0; iter < SL_MM256_FLOAT_NUMBER; iter++)
+            for (iter = 0; iter < SLJPEG_LENGTH_PER_M256; iter++)
             {
                 sum[v] += ymm2[iter];
             }
         }
         ymm4 = _mm256_loadu_ps(sum);
         ymm4 = _mm256_mul_ps(ymm4, ymm3);
-        for (iter = 0; iter < SL_MM256_FLOAT_NUMBER; iter++)
-        {
-            *dstptr++ = ymm4[iter];
-        }
+       _mm256_storeu_ps(dstptr, ymm4);
+       dstptr += SLJPEG_LENGTH_PER_M256;
     }
     slReleaseAllocatedMemory(sum);
 
@@ -162,43 +155,36 @@ INT32 slFastInverseDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
 
 void slUniformQuantizer(float *svu, const float *qvu)
 {
-    int iteri, iterj;
+    int iteri;
 
     __m256 ymm0;
     __m256 ymm1;
     __m256 ymm2;
 
     if (!qvu) { qvu = slJPEG_LUMINANCE_QT; }
-    for (iteri = 0; iteri < 64; iteri += iterj)
+    for (iteri = 0; iteri < 64; iteri += SLJPEG_LENGTH_PER_M256, svu += SLJPEG_LENGTH_PER_M256)
     {
         ymm0 = _mm256_loadu_ps(svu);
         ymm1 = _mm256_loadu_ps(qvu + iteri);
         ymm2 = _mm256_round_ps(_mm256_div_ps(ymm0, ymm1), 0);
-        for (iterj = 0; iterj < SL_MM256_FLOAT_NUMBER; )
-        {
-            *svu++ = ymm2[iterj++];
-        }
+        _mm256_storeu_ps(svu, ymm2);
     }
 }
 
 void slUniformDequantizer(float *sqvu, const float *qvu)
 {
-    int iteri, iterj;
+    int iteri;
 
     __m256 ymm0;
     __m256 ymm1;
-    __m256 ymm2;
 
     if (!qvu) { qvu = slJPEG_LUMINANCE_QT; }
-    for (iteri = 0; iteri < 64; iteri += iterj)
+    for (iteri = 0; iteri < 64; iteri += SLJPEG_LENGTH_PER_M256, sqvu += SLJPEG_LENGTH_PER_M256)
     {
         ymm0 = _mm256_loadu_ps(sqvu);
         ymm1 = _mm256_loadu_ps(qvu + iteri);
-        ymm2 = _mm256_mul_ps(ymm0, ymm1);
-        for (iterj = 0; iterj < SL_MM256_FLOAT_NUMBER; )
-        {
-            *sqvu++ = ymm2[iterj++];
-        }
+        ymm1 = _mm256_mul_ps(ymm0, ymm1);
+        _mm256_storeu_ps(sqvu, ymm1);
     }
 }
 
