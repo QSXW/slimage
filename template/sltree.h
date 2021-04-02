@@ -6,7 +6,7 @@
 #include <cstring>
 #include <cstdint>
 
-/* Incomplete content & Under maintenance */
+/* Incomplete content & Under maintenance  */
 namespace sltree {
     namespace slRedBlackTree {
         #define NIL (nullptr)
