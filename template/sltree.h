@@ -7,6 +7,12 @@
 #include <cstdint>
 
 namespace sltree {
+    enum TraversalMethods {
+        Preorder,
+        Inorder,
+        Postorder
+    };
+
     namespace slRedBlackTree {
         #define NIL (nullptr)
         #define REDBLACK_LEFT 0
@@ -36,12 +42,9 @@ namespace sltree {
 
         template <class _Type>
         void RedBlackNode<_Type>::destroy(RedBlackNode<_Type> *node) {
-            if (node) {
+            if ((node)) {
                 this->destroy(node->sub[REDBLACK_LEFT]);
                 this->destroy(node->sub[REDBLACK_RIGHT]);
-                if (node->data) {
-                    delete node->data;
-                }
                 delete node;
                 node = nullptr;
             }
@@ -80,9 +83,7 @@ namespace sltree {
             inline RedBlackTree<_Type> & insert(const _Type &&);
             inline RedBlackTree<_Type>& insert(const std::initializer_list<_Type> &);
             inline RedBlackTree<_Type>& remove(const _Type &);
-
-            inline void inorderTraversal();
-            void inorderTraversal(RedBlackNode<_Type> *);
+            inline void traversal(uint32_t);
 
         private:
             void _LeftRotate_(RedBlackNode<_Type> *);
@@ -94,11 +95,15 @@ namespace sltree {
             void _DeleteFixUp_(RedBlackNode<_Type> *);
             inline size_t _InsertSucceed_();
             inline size_t _DeleteSucceed_();
-            
+            void _PreorderTraversal_(RedBlackNode<_Type> *);
+            void _InorderTraversal_(RedBlackNode<_Type> *);
+            void _PostorderTraversal_(RedBlackNode<_Type> *);
+
         public:
             using valueType = _Type;
-    
+            using caller = void(RedBlackTree<_Type>::*)(RedBlackNode<_Type> *);
         private:
+            static const caller (vfptr[]);
             RedBlackNode<_Type> *_root;
             size_t _length;
         };
@@ -403,14 +408,19 @@ namespace sltree {
         }
 
         template <class _Type>
-        void RedBlackTree<_Type>::inorderTraversal() {
-            this->inorderTraversal(this->_root);
+        void RedBlackTree<_Type>::traversal(uint32_t traveresalMethod) {
+           (this->*vfptr[traveresalMethod])(this->_root);
         }
         
         template <class _Type>
-        void RedBlackTree<_Type>::inorderTraversal(RedBlackNode<_Type> *node) {
+        void RedBlackTree<_Type>::_PreorderTraversal_(RedBlackNode<_Type> *node) {
+            
+        }
+
+        template <class _Type>
+        void RedBlackTree<_Type>::_InorderTraversal_(RedBlackNode<_Type> *node) {
             if ((node)) {
-                this->inorderTraversal(node->sub[REDBLACK_LEFT]);
+                this->_InorderTraversal_(node->sub[REDBLACK_LEFT]);
             }
             if ((node)) {
                 std::cout << "color: " << ((node->color) ? "\033[31;40mRED\033[0m" : "BLACK") << "    ";
@@ -423,9 +433,21 @@ namespace sltree {
                 }
             }
             if ((node)) {
-                this->inorderTraversal(node->sub[REDBLACK_RIGHT]);
+                this->_InorderTraversal_(node->sub[REDBLACK_RIGHT]);
             }
         }
+
+        template <class _Type>
+        void RedBlackTree<_Type>::_PostorderTraversal_(RedBlackNode<_Type> *node) {
+
+        }
+
+        template <class _Type>
+        const typename RedBlackTree<_Type>::caller RedBlackTree<_Type>::vfptr[] = {
+            reinterpret_cast<RedBlackTree<_Type>::caller>(&RedBlackTree<_Type>::_PreorderTraversal_),
+            reinterpret_cast<RedBlackTree<_Type>::caller>(&RedBlackTree<_Type>::_InorderTraversal_),
+            reinterpret_cast<RedBlackTree<_Type>::caller>(&RedBlackTree<_Type>::_PostorderTraversal_)
+        };
     }
 
     using namespace slRedBlackTree;
