@@ -6,7 +6,6 @@
 #include <cstring>
 #include <cstdint>
 
-/* Incomplete content & Under maintenance  */
 namespace sltree {
     namespace slRedBlackTree {
         #define NIL (nullptr)
@@ -79,6 +78,7 @@ namespace sltree {
             RedBlackTree<_Type>& remove(RedBlackNode<_Type> *);
             inline RedBlackTree<_Type>& replace(const _Type &, const _Type &);
             inline RedBlackTree<_Type> & insert(const _Type &&);
+            inline RedBlackTree<_Type>& insert(const std::initializer_list<_Type> &);
             inline RedBlackTree<_Type>& remove(const _Type &);
 
             inline void inorderTraversal();
@@ -94,7 +94,10 @@ namespace sltree {
             void _DeleteFixUp_(RedBlackNode<_Type> *);
             inline size_t _InsertSucceed_();
             inline size_t _DeleteSucceed_();
-
+            
+        public:
+            using valueType = _Type;
+    
         private:
             RedBlackNode<_Type> *_root;
             size_t _length;
@@ -160,6 +163,14 @@ namespace sltree {
         template <class _Type>
         RedBlackTree<_Type>& RedBlackTree<_Type>::insert(const _Type &&data) {
             return this->insert(data);
+        }
+
+        template <class _Type>
+        RedBlackTree<_Type>& RedBlackTree<_Type>::insert(const std::initializer_list<_Type> &list) {
+            for (auto it = list.begin(); it < list.end(); it++) {
+                this->insert(*it);
+            }
+            return *this;
         }
 
         template <class _Type>
@@ -325,8 +336,9 @@ namespace sltree {
                     }
                     if ((node->super)) {
                         node->super->color = RedBlackColor::Black;
-                        if ((node->super->super) && (node->super->super->color = RedBlackColor::Red)) {
-                        this->_RightRotate_(node->super->super);
+                        if ((node->super->super)) {
+                            node->super->super->color = RedBlackColor::Red;
+                            this->_RightRotate_(node->super->super);
                         }
                     }
                 }
@@ -343,8 +355,9 @@ namespace sltree {
                     }
                     if ((node->super)) {
                         node->super->color = RedBlackColor::Black;
-                        if ((node->super->super) && (node->super->super->color = RedBlackColor::Red)) {
-                        this->_LeftRotate_(node->super->super);
+                        if ((node->super->super)) {
+                            node->super->super->color = RedBlackColor::Red;
+                            this->_LeftRotate_(node->super->super);
                         }
                     }
                 }
@@ -416,8 +429,9 @@ namespace sltree {
     }
 
     using namespace slRedBlackTree;
-    using IntContainer = RedBlackTree<int>;
-    using StringContainer = RedBlackTree<std::string>;
+    using IntContainer      = RedBlackTree<int>;
+    using FloatContainer    = RedBlackTree<float>;
+    using StringContainer   = RedBlackTree<std::string>;
 }
 
 #endif /* __SLTREE_H__ */
