@@ -16,7 +16,8 @@ RawJpeg * RawJpegRead(Stream stream)
     jpeg = NULL;
     join = NULL;
     streamEndPos = slStreamEndPosition(stream);
-    if ((jpegNode = slRawJpegAllocator()))
+    slRawJpegAllocator(jpegNode);
+    if ((jpegNode))
     {  
         segmentLen   = 0;
         htTableIndex = 0;
@@ -124,7 +125,8 @@ RawJpeg * RawJpegRead(Stream stream)
                         *join = jpegNode;
                     }
                     join = &(jpegNode->next);
-                    if (!(jpegNode = slRawJpegAllocator()))
+                    slRawJpegAllocator(jpegNode);
+                    if (!(jpegNode))
                     {
                         /* #1114 Write memory exhausted error to the log */
                     }
@@ -192,7 +194,7 @@ Frame JpegRead(Stream fileStream)
 
     if ((rawJpeg = RawJpegRead(fileStream)))
     {
-        SaveLog((char *)(fileStream->fname->data), JPEG_OPEN_SUCCEED);
+        // SaveLog((char *)(fileStream->fname->data), JPEG_OPEN_SUCCEED);
         frame = JpegDecodingProcess(rawJpeg, fileStream);
     }
 
@@ -799,9 +801,10 @@ INT32 slJpegSequentialModeDecodeScan(slJpeg *jpeg, slJpegScanBitStream *bitStrea
     // float *start = componentPosition[0];
     slJpegComponent *components;
 
+    slAllocateMemory(PRED, float*, (componentsInScan + 1) * sizeof(float));
+    slAllocateMemory(horizontalDataUnits, INT32*, (componentsInScan + 1) * sizeof(INT32));
     slAssert(
-        (PRED                = (float *)malloc((componentsInScan + 1) * sizeof(float))) &&
-        (horizontalDataUnits = (INT32 *)malloc((componentsInScan + 1) * sizeof(INT32))),
+        (PRED) && (horizontalDataUnits),
         SLEXCEPTION_MALLOC_FAILED,
         -1
     );
@@ -867,12 +870,6 @@ INT32 slJpegSequentialModeDecodeScan(slJpeg *jpeg, slJpegScanBitStream *bitStrea
                     #endif
 
                     componentPosition[ci] += SLJPEG_SEQUENTIAL_BLOCK_SIZE;
-
-                    // if (ci == 0)
-                    // {
-                        // printf("coponents position = %d, previous position = %d\n", (INT32) (componentPosition[ci] - start), (INT32) (previousPosition - start) );
-                        // printf("horizontalDataUnits = %d mcux = %d\n", horizontalDataUnits[ci], components[ci].mcux);
-                    // }
                     if (++h == hmax && ++v && vmax == 1)
                     {
                         break;
@@ -967,9 +964,10 @@ INT32 slJpegSequentialModeDecodeComponent(BYTE *dst, slJpegComponent *component,
 
     size_t i;
 
+    slAllocateMemory(blockSequence, float*, sampleCount * sizeof(float));
+    slAllocateMemory(dctSequence, float*, sampleCount * sizeof(float));
     slAssert(
-           (blockSequence = (float *)malloc(sampleCount * sizeof(float)))
-        && (dctSequence   = (float *)malloc(sampleCount * sizeof(float))),
+        (blockSequence) && (dctSequence),
         SLEXCEPTION_MALLOC_FAILED,
         -1
     );
@@ -1013,30 +1011,30 @@ INT32 slJpegSequentialModeDecodeComponent(BYTE *dst, slJpegComponent *component,
 
 INT32 slJpegChromaUpSampling(Frame frame, slJpeg *jpeg)
 {
-    BYTE *Cb;
-    BYTE *Cr;
+    BYTE *cb, *cr;
 
+    slAllocateMemory(cb, BYTE*, jpeg->components[1].sampleCount + 8);
+    slAllocateMemory(cr, BYTE*, jpeg->components[2].sampleCount + 8);
     slAssert(
-        (Cb = (BYTE *)malloc(jpeg->components[1].sampleCount + 8)) &&
-        (Cr = (BYTE *)malloc(jpeg->components[2].sampleCount + 8)),
+        (cb) && (cr),
         SLEXCEPTION_MALLOC_FAILED,
         -1
     );
 
-    memcpy(Cb, frame->data + frame-> size * 0x1, jpeg->components[1].sampleCount);
-    memcpy(Cr, frame->data + frame-> size * 0x2, jpeg->components[2].sampleCount);
+    memmove(cb, frame->data + frame-> size * 0x1, jpeg->components[1].sampleCount);
+    memmove(cr, frame->data + frame-> size * 0x2, jpeg->components[2].sampleCount);
 
     if (jpeg->components[0].h == 2 && jpeg->components[0].v == 2)
     {
-        slChromaUpsampling420(frame, Cb, Cr);
+        slChromaUpsampling420(frame, cb, cr);
     }
     else if (jpeg->components[0].h == 2 && jpeg->components[0].v == 1)
     {
-        slChromaUpsampling422(frame, Cb, Cr);
+        slChromaUpsampling422(frame, cb, cr);
     }
     
-    slReleaseAllocatedMemory(Cb);
-    slReleaseAllocatedMemory(Cr);
+    slReleaseAllocatedMemory(cb);
+    slReleaseAllocatedMemory(cr);
     return 0;
 }
 
@@ -1115,11 +1113,14 @@ Frame JpegDecodingProcess(const RawJpeg *rawJpeg, Stream stream)
     BindJpegToRawJpeg(jpeg, rawJpeg);
 
     // #3 Decode Scan
+    slAllocateMemory(ZZSequence, float*, jpeg->sampleCount * sizeof(float));
+    slAllocateMemory(componentsPosition, float **, jpeg->colorComponent * sizeof(float *));
+    slAllocateMemory(componentsOffsetPosition, float **, jpeg->colorComponent * sizeof(float *));
     slAssert(
-           (frame                    = slFrameAllocator(jpeg->width, jpeg->height, jpeg->colorComponent, jpeg->samplePrecision == 8 ? SLFRAME_DTYPE_BYTE : SLFRAME_DTYPE_WORD,NULL))
-        && (ZZSequence               = (float *)malloc(jpeg->sampleCount * sizeof(float)))
-        && (componentsPosition       = (float **)malloc(jpeg->colorComponent * sizeof(float *)))
-        && (componentsOffsetPosition = (float **)malloc(jpeg->colorComponent * sizeof(float *))),
+           (frame = slFrameAllocator(jpeg->width, jpeg->height, jpeg->colorComponent, jpeg->samplePrecision == 8 ? SLFRAME_DTYPE_BYTE : SLFRAME_DTYPE_WORD,NULL))
+        && (ZZSequence)
+        && (componentsPosition)
+        && (componentsOffsetPosition),
         SLEXCEPTION_MALLOC_FAILED,
         NULL
     );
