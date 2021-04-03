@@ -51,7 +51,7 @@ typedef struct _slRATIONAL {
 typedef struct _slSegmentationFault {
     DWORD *exception;
 } SegmentationFault;
-
+#define CallSegmentationFault() ((SegmentationFault *)0x0)->exception++
 
 #if defined( DEBUG ) || defined(_DEBUG)
 #define CRC32_GENERATOR_POLYNOMIAL 0x04C11DB7
@@ -85,7 +85,7 @@ DWORD slCyclicRedundanceCheck32(const BYTE *message, INT32 length) {
     if ((slCyclicRedundanceCheck32((const BYTE *)(((DWORD *)ptr) - 1), sizeof(DWORD)) ^ *((DWORD *)(ptr + *(((DWORD *)ptr) - 1)))))\
     {\
         slLogMessage(__FILE__, __LINE__, __DATE__, __TIME__, Memory Overflow);\
-        ((SegmentationFault *)0x0)->exception++;\
+        CallSegmentationFault();\
     }\
     free (((DWORD *)ptr) - 1);\
 } while (0)
