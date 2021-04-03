@@ -340,7 +340,7 @@ typedef struct  _RawJpeg {
 #define slRawJpegSetNullptr(RAWJPEG) (memset(RAWJPEG, 0x0, sizeof(RawJpeg)))
 // #define slRawJpegReadSegment(segment, size, stream) do { if (!segment) { segment = (void *)malloc(size > sizeof(segment) ? size : sizeof(segment)); } if (segment) { ReadStream(segment, 0, size, stream); }} while (0)
 #define slRawJpegReadSegment(_DATATYPE, segment, size, stream) do { segment = ((_DATATYPE *)stream->pos); stream->pos += size; } while (0)
-#define slRawJpegAllocator() ((RawJpeg *)malloc(sizeof(RawJpeg)))
+#define slRawJpegAllocator(rawJpeg) slAllocateMemory(rawJpeg, RawJpeg*, sizeof(RawJpeg))
 #define DestroyRawJpeg(_jpeg) do { _DestroyRawJpeg(_jpeg); _jpeg = NULL; } while(0)
 #define slRawJpegGetSegmentLength(stream, length) do { length =  *(((WORD *)(stream->pos)) + 1); if (IsIntelMode()) { MotorolaToIntelMode2(&length); } length += CODE_SIZE; } while (0)
 
