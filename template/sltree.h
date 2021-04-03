@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cstring>
 #include <cstdint>
+#include "typedefs.h"
 
 namespace sltree {
     enum TraversalMethods {
@@ -85,6 +86,9 @@ namespace sltree {
             inline RedBlackTree<_Type>& remove(const _Type &);
             inline void traversal(uint32_t);
 
+        public:
+            _Type& operator [](size_t index);
+
         private:
             void _LeftRotate_(RedBlackNode<_Type> *);
             void _RightRotate_(RedBlackNode<_Type> *);
@@ -103,7 +107,7 @@ namespace sltree {
             using valueType = _Type;
             using caller = void(RedBlackTree<_Type>::*)(RedBlackNode<_Type> *);
         private:
-            static const caller (vfptr[]);
+            static const caller vfptr[];
             RedBlackNode<_Type> *_root;
             size_t _length;
         };
@@ -129,6 +133,15 @@ namespace sltree {
                 this->_root->destroy(this->_root);
                 memset(static_cast<void *>(this), 0x0, sizeof(*this));
             }
+        }
+
+        template <class _Type>
+        _Type& RedBlackTree<_Type>::operator [](size_t index) {
+            if (index >= this->_length) {
+                CallSegmentationFault();
+                return *(this->_root->data);
+            }
+            return *(this->_root->data);
         }
 
         template <class _Type>
@@ -326,7 +339,7 @@ namespace sltree {
 
         template <class _Type>
         void RedBlackTree<_Type>::_InsertFixUp_(RedBlackNode<_Type> *node) {
-            while (node != this->_root && node->super->color == RedBlackColor::Red) {
+            while ((node) && node != this->_root && node->super->color == RedBlackColor::Red) {
                 RedBlackNode<_Type> *siblingOfSuper = nullptr;
                 if (node->super == node->super->super->sub[REDBLACK_LEFT]) {
                     siblingOfSuper = node->super->super->sub[REDBLACK_RIGHT];
