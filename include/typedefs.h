@@ -76,18 +76,24 @@ DWORD slCyclicRedundanceCheck32(const BYTE *message, INT32 length) {
 
 #define _slAllocatedMemoryDebug(ptr, _Type, size) do {\
     (ptr) = (_Type)malloc((size) + (sizeof(DWORD) * 2));\
-    *((DWORD *)ptr) = (size);\
-    ptr = (_Type)(((DWORD *)ptr) + 1);\
-    *((DWORD *)(ptr + size)) = slCyclicRedundanceCheck32((const BYTE *)(((DWORD *)ptr) - 1), sizeof(DWORD));\
+    if ((ptr)) {\
+        *((DWORD *)ptr) = (size);\
+        ptr = (_Type)(((DWORD *)ptr) + 1);\
+        *((DWORD *)(((BYTE *)ptr) + size)) = slCyclicRedundanceCheck32((const BYTE *)(((DWORD *)ptr) - 1), sizeof(DWORD));\
+    }\
 } while (0)
 
 #define _slReleaseAllocatedMemoryDebug(ptr) do {\
-    if ((slCyclicRedundanceCheck32((const BYTE *)(((DWORD *)ptr) - 1), sizeof(DWORD)) ^ *((DWORD *)(ptr + *(((DWORD *)ptr) - 1)))))\
+    if ((ptr) && (slCyclicRedundanceCheck32((const BYTE *)(((DWORD *)ptr) - 1), sizeof(DWORD)) ^ *((DWORD *)(((BYTE *)ptr) + *(((DWORD *)ptr) - 1)))))\
     {\
         slLogMessage(__FILE__, __LINE__, __DATE__, __TIME__, Memory Overflow);\
         CallSegmentationFault();\
     }\
-    free (((DWORD *)ptr) - 1);\
+    else if ((ptr))\
+    {\
+        free (((DWORD *)ptr) - 1);\
+        ptr = NULL;\
+    }\
 } while (0)
 
 #endif
