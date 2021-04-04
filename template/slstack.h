@@ -92,7 +92,7 @@ namespace slstack {
 
     template <class _Type>
     size_t Stack<_Type>::size() const {
-        return !(this->_length);
+        return (this->_length);
     }
 }
 
