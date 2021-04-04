@@ -8,39 +8,38 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "slassert.h"
+
 typedef void (*caller)();
-typedef float                   FLOAT32;
-typedef double                  FLOAT64;
-typedef signed char             INT8;
-typedef signed short            INT16;
-typedef signed int              INT32;
-typedef signed long long int    INT64;
-typedef unsigned char           BYTE;
-typedef unsigned short          WORD;
-typedef unsigned long long      QWORD;
+typedef int8_t INT8;
+typedef int16_t INT16;
+typedef int32_t INT32;
+typedef int64_t INT64;
+typedef uint8_t BYTE;
+typedef uint16_t WORD;
+typedef uint64_t QWORD;
+typedef size_t *GNERICPTR;
+typedef size_t GNERICPTR_NORMALIZED;
+typedef char Bool;
 
 #ifndef _WINDOWS_
-typedef uint32_t  DWORD;
+typedef uint32_t DWORD;
 #endif /* _WINDOWS_ */
-#ifndef FALSE
+#if !defined( FALSE )
 #define FALSE 0
 #endif
-#ifndef TRUE
+#if !defined( TRUE )
 #define TRUE 1
 #endif
 
-typedef size_t          *GNERICPTR, GNERICPTR_NORMALIZED;
-typedef char Bool;
-
 typedef struct _slBIT8 {
-    BYTE b0 : 1;
-    BYTE b1 : 1;
-    BYTE b2 : 1;
-    BYTE b3 : 1;
-    BYTE b4 : 1;
-    BYTE b5 : 1;
-    BYTE b6 : 1;
-    BYTE b7 : 1;
+    uint8_t b0 : 1;
+    uint8_t b1 : 1;
+    uint8_t b2 : 1;
+    uint8_t b3 : 1;
+    uint8_t b4 : 1;
+    uint8_t b5 : 1;
+    uint8_t b6 : 1;
+    uint8_t b7 : 1;
 } bit8, BIT8;
 
 typedef struct _slRATIONAL {
