@@ -19,8 +19,8 @@ enum FrameDataType {
     SLFRAME_DTYPE_INT64,
     SLFRAME_DTYPE_DWORD,
     SLFRAME_DTYPE_QWORD,
-    SLFRAME_DTYPE_FLOAT32,
-    SLFRAME_DTYPE_FLOAT64
+    SLFRAME_DTYPE_float,
+    SLFRAME_DTYPE_double
 };
 
 typedef struct _slFrame  {
@@ -58,8 +58,8 @@ static const size_t slFrameDataTypeSize[]= {
         sizeof(INT64),
         sizeof(DWORD),
         sizeof(QWORD),
-        sizeof(FLOAT32),
-        sizeof(FLOAT64),
+        sizeof(float),
+        sizeof(double),
 };
 
 #define slDataTypeSize(dtype) slFrameDataTypeSize[(dtype)]
