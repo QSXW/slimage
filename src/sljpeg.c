@@ -1,6 +1,6 @@
 #include <malloc.h>
 #include <math.h>
-#include <sljpeg.h>
+#include "sljpeg.h"
 
 RawJpeg * RawJpegRead(Stream stream)
 {
@@ -126,14 +126,13 @@ RawJpeg * RawJpegRead(Stream stream)
                     }
                     join = &(jpegNode->next);
                     slRawJpegAllocator(jpegNode);
-                    if (!(jpegNode))
+                    if ((jpegNode))
                     {
-                        /* #1114 Write memory exhausted error to the log */
+                        slRawJpegSetNullptr(jpegNode);
+                        segmentLen = 0;
+                        htTableIndex = 0;
+                        qtTableIndex = 0;
                     }
-                    slRawJpegSetNullptr(jpegNode);
-                    segmentLen   = 0;
-                    htTableIndex = 0;
-                    qtTableIndex = 0;
                     break;
 
                 default:
@@ -159,32 +158,12 @@ RawJpeg * RawJpegRead(Stream stream)
 
 void _DestroyRawJpeg(RawJpeg *rawJpeg)
 {
-    GNERICPTR startedAddress;
-    GNERICPTR terminatedAddress;
-
-    startedAddress =  (GNERICPTR)rawJpeg;
-    terminatedAddress = (((GNERICPTR)rawJpeg) + sizeof(RawJpeg) / sizeof(GNERICPTR));
-
     slRawJpegSetNullptr(rawJpeg);
-    
-    while(startedAddress < terminatedAddress)
-    {
-        if (
-            *startedAddress != (GNERICPTR_NORMALIZED)(rawJpeg->next)
-            &&
-            *startedAddress != (GNERICPTR_NORMALIZED)(rawJpeg->_SCAN)
-            &&
-            *startedAddress)
-        {
-            free((void *)*startedAddress);
-        }
-        startedAddress++;
-    }
     if (rawJpeg->next)
     {
         _DestroyRawJpeg(rawJpeg->next);
     }
-    free(rawJpeg);
+    slReleaseAllocatedMemory(rawJpeg);
 }
 
 Frame JpegRead(Stream fileStream)
@@ -192,6 +171,7 @@ Frame JpegRead(Stream fileStream)
     Frame frame;
     RawJpeg *rawJpeg;
 
+    frame = NULL;
     if ((rawJpeg = RawJpegRead(fileStream)))
     {
         // SaveLog((char *)(fileStream->fname->data), JPEG_OPEN_SUCCEED);
@@ -204,22 +184,21 @@ Frame JpegRead(Stream fileStream)
 
 slJpegComponent *SLJpegComponentAllocator(BYTE capacity)
 {
-    slJpegComponent *jpegComponent;
+    slJpegComponent *component;
 
-    capacity = capacity ? capacity * sizeof(slJpegComponent) : sizeof(slJpegComponent);
-    if ((jpegComponent = (slJpegComponent *)malloc(capacity)))
-    {
-        memset(jpegComponent, 0x0, capacity);
-    }
+    capacity = capacity ? (capacity * sizeof(slJpegComponent)) : sizeof(slJpegComponent);
+    slAllocateMemory(component, slJpegComponent *, capacity);
+    if ((component)) { memset(component, 0x0, capacity); }
 
-    return jpegComponent;
+    return component;
 }
 
 slJpeg *slJpegAllocator()
 {
     slJpeg *jpeg;
 
-    if ((jpeg = (slJpeg *)malloc(sizeof(slJpeg))))
+    slAllocateMemory(jpeg, slJpeg *, sizeof(slJpeg));
+    if ((jpeg))
     {
         memset(jpeg, 0x0, sizeof(slJpeg));
     }
@@ -243,26 +222,23 @@ void __slJpegDeallocator(slJpeg *jpeg)
 
 slJpegHuffTable *slJpegHuffTableAllocator(BYTE *bits, BYTE *values, INT32 length)
 {
-    slJpegHuffTable *jpegHuffTable;
+    slJpegHuffTable *hufftable;
 
-    if ((jpegHuffTable = (slJpegHuffTable *)malloc(sizeof(slJpegHuffTable))))
+    slAllocateMemory(hufftable, slJpegHuffTable *, sizeof(slJpegHuffTable));
+    if ((hufftable))
     {
-        memset(jpegHuffTable, 0x0, sizeof(slJpegHuffTable));
+        memset(hufftable, 0x0, sizeof(slJpegHuffTable));
         if ((bits))
         {
-            memcpy(jpegHuffTable->bits + 1, bits, 16);
+            memcpy(hufftable->bits + 1, bits, 16);
         }
         if ((values))
         {
-            memcpy(jpegHuffTable->huffval, values, length);
+            memcpy(hufftable->huffval, values, length);
         }
     }
-    else
-    {
-        // #1114 Write Error: Out of memory   
-    }
 
-    return jpegHuffTable;
+    return hufftable;
 }
 
 /* Generate size table */
@@ -357,57 +333,48 @@ INT32 slGenerateDecoderTable(slJpegHuffTable *huffTable)
     return 0;
 }
 
-INT32 SLJpegHuffTableBinder(slJpeg *jpeg, DHT *const *dhts)
+INT32 SLJpegHuffTableBinder(slJpeg *jpeg, DHT *const *definedHuffTables)
 {
-    DHT *dht;
     size_t ci, cj;
-    INT32 length, tableEnd, tableIndex;
+    INT32  length, tableEnd, tableIndex;
+    DHT*   definedHuffTable;
+    slJpegHuffTable **huffTable;
 
+    huffTable = NULL;
+    length = tableEnd = 0x0;
     for (ci = 0; ci < SLJPEG_TABLESIZE; ci++)
     {
-        if (dhts[ci])
+        if (definedHuffTables[ci] != NULL)
         {
-            dht = dhts[ci];
+            definedHuffTable = definedHuffTables[ci];
             if (IsIntelMode())
             {
-                MotorolaToIntelMode(&dht->length, &tableEnd, sizeof(dht->length));
+                MotorolaToIntelMode(&(definedHuffTable->length), &tableEnd, sizeof(definedHuffTable->length));
             }
             else
             {
-                length = dht->length;
+                tableEnd = definedHuffTable->length;
             }
-            
-            tableEnd -= sizeof(dht->code) + sizeof(dht->length);
-            while ((((BYTE *)dht) - ((BYTE *)dhts[ci])) < tableEnd)
+            tableEnd -= (sizeof(definedHuffTable->code) + sizeof(definedHuffTable->length));
+            while ((((BYTE *)definedHuffTable) - ((BYTE *)definedHuffTables[ci])) < tableEnd)
             {
                 cj = length = 0;
                 while (cj < 16)
                 {
-                    length += dht->bits[cj++];
+                    length += definedHuffTable->bits[cj++];
                 }
-                tableIndex = 0x0f & dht->selector;
-                // printf("table index = %d\n 0xf0 & dht->selector = %d\n", tableIndex, (0xf0 & dht->selector) >> 4);
-                if (0x10 & dht->selector)
+                tableIndex = (0x0f & definedHuffTable->selector);
+                huffTable  = (0x10 & definedHuffTable->selector) ? (&(jpeg->acTable[tableIndex])) : (&(jpeg->dcTable[tableIndex]));
+                if (tableIndex < SLJPEG_JPEGHUFFTABLESIZE)
                 {
-                    if (jpeg->acTable[tableIndex])
+                    if ((*huffTable) != NULL)
                     {
-                        slJpegHuffTableDeallocator(jpeg->acTable[tableIndex]);
+                        slJpegHuffTableDeallocator(*huffTable);
                     }
-                    // DisplayIntHexMatrix(dht->values, length, "dht\n", 16);
-                    jpeg->acTable[tableIndex] = slJpegHuffTableAllocator(dht->bits, dht->values, length);
-                    slGenerateDecoderTable(jpeg->acTable[tableIndex]);
+                    *huffTable = slJpegHuffTableAllocator(definedHuffTable->bits, definedHuffTable->values, length);
+                    slGenerateDecoderTable(*huffTable);
                 }
-                else
-                {
-                    if (jpeg->dcTable[tableIndex])
-                    {
-                        slJpegHuffTableDeallocator(jpeg->dcTable[tableIndex]);
-                    }
-                    // DisplayIntHexMatrix(dht->values, length, "dht\n", 16);
-                    jpeg->dcTable[tableIndex] = slJpegHuffTableAllocator(dht->bits, dht->values, length);
-                    slGenerateDecoderTable(jpeg->dcTable[tableIndex]);
-                }
-                dht = (DHT *)(((BYTE *)dht) + sizeof(dht->selector) + sizeof(dht->bits) + length);
+                definedHuffTable = (DHT *)(((BYTE *)definedHuffTable) + sizeof(definedHuffTable->selector) + sizeof(definedHuffTable->bits) + length);
             }
         }
     }
@@ -417,63 +384,61 @@ INT32 SLJpegHuffTableBinder(slJpeg *jpeg, DHT *const *dhts)
 
 JpegQuantizationTable *slJpegQuantizationTableAllocator(INT32 precision, BYTE *elements, INT32 *length)
 {
-    JpegQuantizationTable *jpegQuantizationTable;
     INT32 i, offset;
+    JpegQuantizationTable *quantizationTable;
 
     *length = 64 * (precision + 1);
     offset = precision ? 2 : 1;
 
-    slAssert (
-        (jpegQuantizationTable = (JpegQuantizationTable *)malloc(sizeof(JpegQuantizationTable) + *length * sizeof(float))),
-        SLEXCEPTION_NULLPOINTER_REFERENCE,
-        NULL
-    );
-    // DisplayIntMatrix(elements, 64, "byte\n", 8);
-    memset(jpegQuantizationTable, 0x0, sizeof(JpegQuantizationTable) + *length * sizeof(float));
+    slAllocateMemory(quantizationTable, JpegQuantizationTable *, sizeof(JpegQuantizationTable) + *length * sizeof(float));
+    slAssert ((quantizationTable), SLEXCEPTION_NULLPOINTER_REFERENCE, NULL);
+    memset(quantizationTable, 0x0, sizeof(JpegQuantizationTable) + *length * sizeof(float));
     for (i = 0; i < SLJPEG_SEQUENTIAL_BLOCK_SIZE; i++)
     {
-        jpegQuantizationTable->elements[i] = (float)*elements; elements += offset;
+        quantizationTable->elements[i] = (float)*elements;
+        elements += offset;
     }
-    // DisplayFloatMatrix(jpegQuantizationTable->elements, 64, "\n", 8);
-    jpegQuantizationTable->precision = precision ? 10 : 8;
+    quantizationTable->precision = precision ? 10 : 8;
 
-    return jpegQuantizationTable;
+    return quantizationTable;
 }
 
-void SLJpegQuantizationTableBinder(slJpeg *jpeg, DQT *const *dqts)
+void SLJpegQuantizationTableBinder(slJpeg *jpeg, DQT *const *definedQuatizationTables)
 {
-    DQT *dqt;
-    size_t ci;
-    INT32 length, tableEnd, tableIndex;
+    DQT    *definedQuatizationTable;
+    INT32  ci, length, tableEnd, tableIndex;
 
+    length = tableEnd = 0x0;
     for (ci = 0; ci < SLJPEG_TABLESIZE; ci++)
     {
-        if (dqts[ci])
+        if (definedQuatizationTables[ci])
         {
-            dqt = dqts[ci];
+            definedQuatizationTable = definedQuatizationTables[ci];
             if (IsIntelMode())
             {
-                MotorolaToIntelMode(&dqt->length, &tableEnd, sizeof(dqt->length));
+                MotorolaToIntelMode(&definedQuatizationTable->length, &tableEnd, sizeof(definedQuatizationTable->length));
             }
             else
             {
-                length =  dqt->length;
+                length = definedQuatizationTable->length;
             }
 
-            tableEnd -= sizeof(dqt->code) + sizeof(dqt->length);
-            while ((((BYTE *)dqt) - ((BYTE *)dqts[ci])) < tableEnd)
+            tableEnd -= sizeof(definedQuatizationTable->code) + sizeof(definedQuatizationTable->length);
+            while ((((BYTE *)definedQuatizationTable) - ((BYTE *)definedQuatizationTables[ci])) < tableEnd)
             {
-                tableIndex = 0x0f & dqt->selector;
-                if ((jpeg->qtTable[tableIndex]) && tableIndex < 4)
+                tableIndex = 0x0f & definedQuatizationTable->selector;
+                if (tableIndex < SLJPEG_JPEGHUFFTABLESIZE)
                 {
-                    slJpegComponentDeallocator(jpeg->qtTable[tableIndex]);
+                    if ((jpeg->qtTable[tableIndex]))
+                    {
+                        slJpegComponentDeallocator(jpeg->qtTable[tableIndex]);
+                    }
+                    jpeg->qtTable[tableIndex] = slJpegQuantizationTableAllocator((0xf0 & definedQuatizationTable->selector) >> 4, definedQuatizationTable->element, &length);
                 }
-                jpeg->qtTable[tableIndex] = slJpegQuantizationTableAllocator((0xf0 & dqt->selector) >> 4, dqt->element, &length);
-                dqt = (DQT *)(((BYTE *)dqt) + sizeof(dqt->selector) + length);
+                definedQuatizationTable = (DQT *)(((BYTE *)definedQuatizationTable) + sizeof(definedQuatizationTable->selector) + length);
             }
         }
     }
-
 }
 
 INT32 slJpegScanComponentBinder(slJpeg *jpeg, ScanComponent  *scanComponent, INT32 scanNum)
@@ -494,8 +459,7 @@ INT32 slJpegComponentsBinder(slJpeg *jpeg, BYTE sofCode, FrameComponent *frameCo
     BYTE h, v;
     BYTE ci;
 
-    INT32   mcu;
-    size_t  MCUNumber;
+    INT32   mcu, MCUNumber;
 
     if (sofCode == SLJPEG_CODE_SOF2)
         jpeg->isProgressive = TRUE;
@@ -516,8 +480,8 @@ INT32 slJpegComponentsBinder(slJpeg *jpeg, BYTE sofCode, FrameComponent *frameCo
         }
         for (ci = 0; ci < jpeg->colorComponent; ci++)
         {
-            jpeg->components[ci].x = ceil(jpeg->width * ((float)jpeg->components[ci].h / (float)jpeg->maxHorizontalSamplingFactor));
-            jpeg->components[ci].y = ceil(jpeg->height * ((float)jpeg->components[ci].v / (float)jpeg->maxVerticalSamplingFactor));
+            jpeg->components[ci].x = (INT32)ceil((double)jpeg->width * ((float)jpeg->components[ci].h / (float)jpeg->maxHorizontalSamplingFactor));
+            jpeg->components[ci].y = (INT32)ceil((double)jpeg->height * ((float)jpeg->components[ci].v / (float)jpeg->maxVerticalSamplingFactor));
 
             jpeg->components[ci].paddingx = slMod8(jpeg->components[ci].x) ? 8 - slMod8(jpeg->components[ci].x) : 0;
             jpeg->components[ci].paddingy = slMod8(jpeg->components[ci].y) ? 8 - slMod8(jpeg->components[ci].y) : 0;
@@ -533,7 +497,7 @@ INT32 slJpegComponentsBinder(slJpeg *jpeg, BYTE sofCode, FrameComponent *frameCo
             MCUNumber = jpeg->components[ci].mcux  * jpeg->components[ci].mcuy;
             jpeg->MCUNumber += MCUNumber;
 
-            jpeg->components[ci].sampleCount = (MCUNumber) * 64;
+            jpeg->components[ci].sampleCount = ((size_t)MCUNumber) * 64;
             jpeg->sampleCount += jpeg->components[ci].sampleCount;
         }
         jpeg->MCUNumber /= jpeg->dataPerMCU;
@@ -576,8 +540,9 @@ JpegEncodingHuffTable *JpegEncodingHuffTableAllocator(slJpegHuffTable *huffTable
     INT32 i, k, lastk;
     INT32 huffsize[SLJPEG_HUFFVALSIZE] = { 0 };
     INT32 huffcode[SLJPEG_HUFFVALSIZE] = { 0 };
-
-    if ((encodingHuffTable = (JpegEncodingHuffTable *)malloc(sizeof(JpegEncodingHuffTable))))
+        
+    slAllocateMemory(encodingHuffTable, JpegEncodingHuffTable *, sizeof(JpegEncodingHuffTable));
+    if ((encodingHuffTable))
     {
         memset(encodingHuffTable, 0x0, sizeof(JpegEncodingHuffTable));
         /* Generate size table */
@@ -602,8 +567,9 @@ slJpegScanBitStream *slJpegScanBitStreamAllocator(BYTE *byteSequence, BYTE *sequ
 {
     slJpegScanBitStream *bitStream;
 
+    slAllocateMemory(bitStream, slJpegScanBitStream*, sizeof(slJpegScanBitStream));
     slAssert(
-        bitStream = (slJpegScanBitStream *)malloc(sizeof(slJpegScanBitStream)),
+        bitStream,
         SLEXCEPTION_MALLOC_FAILED,
         NULL
     );
@@ -714,7 +680,7 @@ void slEXTEND(INT32 *V, INT32 T)
     VT = T ? (1 << (T - 1)) : T;
     if (*V < VT)
     {
-        VT = (-1 << T) + 1;
+        VT = ((~(DWORD)0) << T) + 1;
         *V = *V + VT;
     }
 }
@@ -801,8 +767,8 @@ INT32 slJpegSequentialModeDecodeScan(slJpeg *jpeg, slJpegScanBitStream *bitStrea
     // float *start = componentPosition[0];
     slJpegComponent *components;
 
-    slAllocateMemory(PRED, float*, (componentsInScan + 1) * sizeof(float));
-    slAllocateMemory(horizontalDataUnits, INT32*, (componentsInScan + 1) * sizeof(INT32));
+    slAllocateMemory(PRED, float*, ((size_t)componentsInScan + 1) * sizeof(float));
+    slAllocateMemory(horizontalDataUnits, INT32*, ((size_t)componentsInScan + 1) * sizeof(INT32));
     slAssert(
         (PRED) && (horizontalDataUnits),
         SLEXCEPTION_MALLOC_FAILED,
@@ -810,11 +776,11 @@ INT32 slJpegSequentialModeDecodeScan(slJpeg *jpeg, slJpegScanBitStream *bitStrea
     );
     memset(PRED , 0, componentsInScan * sizeof(float));
     memset(horizontalDataUnits, 0, componentsInScan * sizeof(int));
-    
-    cmax       = componentsInScan;
-    MCUNumber  = jpeg->MCUNumber;
-    components = jpeg->components;
-    
+
+    cmax             = componentsInScan;
+    MCUNumber        = jpeg->MCUNumber;
+    components       = jpeg->components;
+    previousPosition = 0;
     /*  Decode MCU */
     for (
         MCUI = 0, decodedMCUNumber = 0;
@@ -878,7 +844,7 @@ INT32 slJpegSequentialModeDecodeScan(slJpeg *jpeg, slJpegScanBitStream *bitStrea
                     {
                         previousPosition = componentPosition[ci];
                         h = 0;
-                        componentPosition[ci] += (v * (components[ci].mcux - hmax) * 64); 
+                        componentPosition[ci] += ((size_t)v * ((size_t)components[ci].mcux - (size_t)hmax) * 64);
                     }
                     else if (h == hmax && v == vmax && horizontalDataUnits[ci] < (components[ci].mcux - hmax))
                     {
@@ -915,7 +881,7 @@ void slUnZigZag(float *src, float *dst)
     }
 }
 
-INT32 NormalizeBlockAsMatrix(float *src, BYTE *dst, size_t width, size_t height, INT32 horizontalComplement, INT32 verticalComplement, INT32 alignedLength)
+INT32 NormalizeBlockAsMatrix(float *src, float *dst, size_t width, size_t height, INT32 horizontalComplement, INT32 verticalComplement, INT32 alignedLength)
 {
     size_t  iteri;
     size_t  iterj;
@@ -923,7 +889,7 @@ INT32 NormalizeBlockAsMatrix(float *src, BYTE *dst, size_t width, size_t height,
     INT32  horizontalCounter;
     INT32  verticalCounter;
     float  *srcptr;
-    BYTE   *dstptr;
+    float  *dstptr;
     float  *presrcptr;
     INT32  offset;
 
@@ -938,7 +904,7 @@ INT32 NormalizeBlockAsMatrix(float *src, BYTE *dst, size_t width, size_t height,
                 horizontalCounter = 0;
                 srcptr += offset;
             }
-            *dstptr++ = (BYTE)*srcptr++;
+            *dstptr++ = *srcptr++;
         }
 
         if (++verticalCounter == alignedLength)
@@ -957,7 +923,7 @@ INT32 NormalizeBlockAsMatrix(float *src, BYTE *dst, size_t width, size_t height,
     return 0;
 }
 
-INT32 slJpegSequentialModeDecodeComponent(BYTE *dst, slJpegComponent *component, size_t sampleCount, float *ZZSequence, float *quantizationTable)
+INT32 slJpegSequentialModeDecodeComponent(float *dst, slJpegComponent *component, size_t sampleCount, float *ZZSequence, float *quantizationTable)
 {
     float *dctSequence;
     float *blockSequence;
@@ -966,11 +932,7 @@ INT32 slJpegSequentialModeDecodeComponent(BYTE *dst, slJpegComponent *component,
 
     slAllocateMemory(blockSequence, float*, sampleCount * sizeof(float));
     slAllocateMemory(dctSequence, float*, sampleCount * sizeof(float));
-    slAssert(
-        (blockSequence) && (dctSequence),
-        SLEXCEPTION_MALLOC_FAILED,
-        -1
-    );
+    slAssert((blockSequence) && (dctSequence), SLEXCEPTION_MALLOC_FAILED, -1);
     memset(blockSequence, 0x0, sampleCount * sizeof(float));
     
     for (i = 0; i < sampleCount; i += SLJPEG_SEQUENTIAL_BLOCK_SIZE)
@@ -1011,18 +973,18 @@ INT32 slJpegSequentialModeDecodeComponent(BYTE *dst, slJpegComponent *component,
 
 INT32 slJpegChromaUpSampling(Frame frame, slJpeg *jpeg)
 {
-    BYTE *cb, *cr;
+    float *cb, *cr;
 
-    slAllocateMemory(cb, BYTE*, jpeg->components[1].sampleCount + 8);
-    slAllocateMemory(cr, BYTE*, jpeg->components[2].sampleCount + 8);
+    slAllocateMemory(cb, float*, jpeg->components[1].sampleCount + 8);
+    slAllocateMemory(cr, float*, jpeg->components[2].sampleCount + 8);
     slAssert(
         (cb) && (cr),
         SLEXCEPTION_MALLOC_FAILED,
         -1
     );
 
-    memmove(cb, frame->data + frame-> size * 0x1, jpeg->components[1].sampleCount);
-    memmove(cr, frame->data + frame-> size * 0x2, jpeg->components[2].sampleCount);
+    memcpy(cb, frame->data + frame-> size * 0x1, jpeg->components[1].sampleCount);
+    memcpy(cr, frame->data + frame-> size * 0x2, jpeg->components[2].sampleCount);
 
     if (jpeg->components[0].h == 2 && jpeg->components[0].v == 2)
     {
@@ -1056,8 +1018,8 @@ INT32 slJpegDecodeScan(slJpeg *jpeg, BYTE *byteSequence, BYTE *byteSequenceEnd, 
             {
                 MotorolaToIntelMode2(&(startOfScan->length));
             }
-            byteSequence += startOfScan->length + CODE_SIZE;
-            progressiveMeta = (ProgressiveMeta *)((BYTE *)startOfScan) + startOfScan->length + CODE_SIZE - sizeof(ProgressiveMeta);
+            byteSequence += (size_t)startOfScan->length + CODE_SIZE;
+            progressiveMeta = (ProgressiveMeta *)(((BYTE *)startOfScan) + startOfScan->length + CODE_SIZE - sizeof(ProgressiveMeta));
             if ((jpeg->isProgressive))
             {
                 scanDecoder = slJpegProgressiveModeDecodeScan;
@@ -1117,7 +1079,7 @@ Frame JpegDecodingProcess(const RawJpeg *rawJpeg, Stream stream)
     slAllocateMemory(componentsPosition, float **, jpeg->colorComponent * sizeof(float *));
     slAllocateMemory(componentsOffsetPosition, float **, jpeg->colorComponent * sizeof(float *));
     slAssert(
-           (frame = slFrameAllocator(jpeg->width, jpeg->height, jpeg->colorComponent, jpeg->samplePrecision == 8 ? SLFRAME_DTYPE_BYTE : SLFRAME_DTYPE_WORD,NULL))
+           (frame = slFrameAllocator(jpeg->width, jpeg->height, jpeg->colorComponent, SLFRAME_DTYPE_FLOAT, NULL))
         && (ZZSequence)
         && (componentsPosition)
         && (componentsOffsetPosition),
@@ -1129,7 +1091,7 @@ Frame JpegDecodingProcess(const RawJpeg *rawJpeg, Stream stream)
     componentsPosition[0] = ZZSequence;
     for (ci = 1; ci < jpeg->colorComponent; ci++)
     {
-        componentsPosition[ci] = componentsPosition[ci - 1] + ((jpeg->components[ci - 1].mcux  * jpeg->components[ci - 1].mcuy)) * 64;
+        componentsPosition[ci] = componentsPosition[ci - 1] + (((size_t)jpeg->components[ci - 1].mcux  * (size_t)jpeg->components[ci - 1].mcuy)) * 64;
     }
     memcpy(componentsOffsetPosition, componentsPosition, jpeg->colorComponent * sizeof(float *));
 
@@ -1139,7 +1101,7 @@ Frame JpegDecodingProcess(const RawJpeg *rawJpeg, Stream stream)
     for (ci = 0; ci < jpeg->colorComponent; ci++)
     {
         slJpegSequentialModeDecodeComponent(
-            frame->data + ci * frame->size,
+            ((float*)frame->data) + ci * frame->size,
             jpeg->components + ci,
             jpeg->components[ci].sampleCount,
             componentsPosition[ci],
@@ -1222,7 +1184,7 @@ INT32 slBaselineEnCodingComponent(BYTE *data, size_t width, size_t height)
         SLEXCEPTION_NULLPOINTER_REFERENCE,
         -1
     );
-    memset(blocks, 0x0, sizeof(imageSize * sizeof(float)));
+    memset(blocks, 0x0, imageSize * sizeof(float));
 
     /* #2 Normalizing the 2-dimensional matrix image data as a block to block, each of which with a binary sequence of 64 samples.s */
     NormalizeMatrixAsBlock(data, blocks, width, height, horizontalComplement, verticalComplement, 8);
@@ -1289,6 +1251,7 @@ void slEncodeACCoefficientsWithSpectralSelection(INT32 *EOBRUN, INT32 spectralSe
 {
     INT32 k, R; /* run length of zero cofficients */
 
+    R = 0;
     k = spectralSelectionStart - 1;
     while (k != spectralSelectionEnd)
     {

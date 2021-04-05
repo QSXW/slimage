@@ -6,13 +6,12 @@ float slBicubicConvolutionKernal(float x)
     float weight;
 
     absx = slAbsolute(x);
-    if (absx <= 1)
-    {
-        weight = (slBicubicConvolutionKey + 2) * pow(absx, 3) - (slBicubicConvolutionKey + 3) * pow(absx, 2) + 1;
+    if (absx <= 1) {
+        weight = (float)((slBicubicConvolutionKey + 2.0) * pow(absx, 3.0) - (slBicubicConvolutionKey + 3.0) * pow(absx, 2.0) + 1.0);
     }
     else if (absx < 2)
     {
-        weight = slBicubicConvolutionKey * pow(absx, 3) - (slBicubicConvolutionKey * 5) * pow(absx, 2) + (slBicubicConvolutionKey * 8) * absx - (slBicubicConvolutionKey * 4);
+        weight = (float)(slBicubicConvolutionKey * pow(absx, 3.0) - (slBicubicConvolutionKey * 5.0) * pow(absx, 2.0) + (slBicubicConvolutionKey * 8.0) * absx - (slBicubicConvolutionKey * 4.0));
     }
     else if (absx == 0)
     {
@@ -70,24 +69,24 @@ INT32 slBicubicConvolutionInterpolateByteChannel(BYTE *src, BYTE *dst, float wid
             y2 = y2 >= srcHeight ? y1 : y2;
             y3 = y3 >= srcHeight ? y2 : y3;
 
-            sample  = *(src + y0 * srcWidth + x0) * cx0 * cy0
-                    + *(src + y1 * srcWidth + x0) * cx0 * cy1
-                    + *(src + y2 * srcWidth + x0) * cx0 * cy2
-                    + *(src + y3 * srcWidth + x0) * cx0 * cy3
-                    + *(src + y0 * srcWidth + x1) * cx1 * cy0
-                    + *(src + y1 * srcWidth + x1) * cx1 * cy1
-                    + *(src + y2 * srcWidth + x1) * cx1 * cy2
-                    + *(src + y3 * srcWidth + x1) * cx1 * cy3
-                    + *(src + y0 * srcWidth + x2) * cx2 * cy0
-                    + *(src + y1 * srcWidth + x2) * cx2 * cy1
-                    + *(src + y2 * srcWidth + x2) * cx2 * cy2
-                    + *(src + y3 * srcWidth + x2) * cx2 * cy3
-                    + *(src + y0 * srcWidth + x3) * cx3 * cy0
-                    + *(src + y1 * srcWidth + x3) * cx3 * cy1
-                    + *(src + y2 * srcWidth + x3) * cx3 * cy2
-                    + *(src + y3 * srcWidth + x3) * cx3 * cy3;
+            sample  = *(src + (size_t)y0 * (size_t)srcWidth + x0) * cx0 * cy0
+                    + *(src + (size_t)y1 * (size_t)srcWidth + x0) * cx0 * cy1
+                    + *(src + (size_t)y2 * (size_t)srcWidth + x0) * cx0 * cy2
+                    + *(src + (size_t)y3 * (size_t)srcWidth + x0) * cx0 * cy3
+                    + *(src + (size_t)y0 * (size_t)srcWidth + x1) * cx1 * cy0
+                    + *(src + (size_t)y1 * (size_t)srcWidth + x1) * cx1 * cy1
+                    + *(src + (size_t)y2 * (size_t)srcWidth + x1) * cx1 * cy2
+                    + *(src + (size_t)y3 * (size_t)srcWidth + x1) * cx1 * cy3
+                    + *(src + (size_t)y0 * (size_t)srcWidth + x2) * cx2 * cy0
+                    + *(src + (size_t)y1 * (size_t)srcWidth + x2) * cx2 * cy1
+                    + *(src + (size_t)y2 * (size_t)srcWidth + x2) * cx2 * cy2
+                    + *(src + (size_t)y3 * (size_t)srcWidth + x2) * cx2 * cy3
+                    + *(src + (size_t)y0 * (size_t)srcWidth + x3) * cx3 * cy0
+                    + *(src + (size_t)y1 * (size_t)srcWidth + x3) * cx3 * cy1
+                    + *(src + (size_t)y2 * (size_t)srcWidth + x3) * cx3 * cy2
+                    + *(src + (size_t)y3 * (size_t)srcWidth + x3) * cx3 * cy3;
 
-            *(dst   + scanLine + ix) = slColourSampleClamp(sample,   0, 255);
+            *(dst   + scanLine + ix) = (BYTE)slColourSampleClamp(sample,   0, 255);
         }
         scanLine += dstWidth;
     } 
@@ -118,16 +117,16 @@ INT32 slNearestInterpolateRGB(Frame src, Frame dst, float widthRatio, float heig
     {
         for ( ix = 0; ix < dstWidth; ix++ )
         {
-            x = ix / widthRatio;
-            y = iy / heightRatio;
+            x = (INT32)(ix / widthRatio);
+            y = (INT32)(iy / heightRatio);
 
             slNearestSample(redSample,   inputRedChannel,   srcWidth, x, y);
             slNearestSample(greenSample, inputGreenChannel, srcWidth, x, y);
             slNearestSample(blueSample,  inputBlueChannel,  srcWidth, x, y);
 
-            *(outputRedChannel   + scanLine + iy) = slColourSampleClamp(redSample,   0, 255);
-            *(outputGreenChannel + scanLine + iy) = slColourSampleClamp(greenSample, 0, 255);
-            *(outputBlueChannel  + scanLine + iy) = slColourSampleClamp(blueSample,  0, 255);
+            *(outputRedChannel   + scanLine + iy) = (BYTE)slColourSampleClamp(redSample,   0, 255);
+            *(outputGreenChannel + scanLine + iy) = (BYTE)slColourSampleClamp(greenSample, 0, 255);
+            *(outputBlueChannel  + scanLine + iy) = (BYTE)slColourSampleClamp(blueSample,  0, 255);
         }
         scanLine += dstWidth;
     } 
@@ -242,9 +241,9 @@ INT32 slBicubicConvolutionInterpolateRGB(Frame src, Frame dst, float widthRatio,
                         + *(inputBlueChannel + y2 * srcWidth + x3) * cx3 * cy2
                         + *(inputBlueChannel + y3 * srcWidth + x3) * cx3 * cy3;
 
-            *(outputRedChannel   + scanLine + ix) = slColourSampleClamp(redSample,   0, 255);
-            *(outputGreenChannel + scanLine + ix) = slColourSampleClamp(greenSample, 0, 255);
-            *(outputBlueChannel  + scanLine + ix) = slColourSampleClamp(blueSample,  0, 255);
+            *(outputRedChannel   + scanLine + ix) = (BYTE)slColourSampleClamp(redSample,   0, 255);
+            *(outputGreenChannel + scanLine + ix) = (BYTE)slColourSampleClamp(greenSample, 0, 255);
+            *(outputBlueChannel  + scanLine + ix) = (BYTE)slColourSampleClamp(blueSample,  0, 255);
         }
         scanLine += dstWidth;
     } 

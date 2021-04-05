@@ -1,9 +1,8 @@
-#include <slframe.h>
+#include "slframe.h"
 
 Frame slFrameAllocator(INT32 x, INT32 y, INT32 z, INT32 dtype, void *data)
 {
     Frame frame;
-    size_t dataSize;
     size_t size;
     size_t mallocSize;
 
@@ -12,19 +11,19 @@ Frame slFrameAllocator(INT32 x, INT32 y, INT32 z, INT32 dtype, void *data)
     z  = z > 0 ? z : 0;
 
     size = (size_t)x * (size_t)y;
-    dataSize = size * z;
-    dataSize = dataSize * slDataTypeSize(dtype);
-    mallocSize = dataSize + ((dataSize & 0x7) ? (8 - (dataSize & 0x7)) : 0);
+    size += slMod4(size);
+    mallocSize = size * z * slDataTypeSize(dtype);
+    mallocSize += slMod8(mallocSize);
 
+    slAllocateMemory(frame, Frame, sizeof(slFrame) + mallocSize);
     slAssert (
-        (frame = (Frame)malloc(sizeof(slFrame) + mallocSize)),
+        frame,
         SLEXCEPTION_MALLOC_FAILED,
         NULL
     );
-    if (!dataSize) {
-        memset(frame, 0x0, sizeof(slFrame));
-    }
-    else {
+    if (!mallocSize) {
+        memset(frame, 0x0, sizeof(struct _slFrame));
+    } else {
         frame->size  = size;
         frame->dims  = z;
         frame->row   = y;
@@ -32,9 +31,8 @@ Frame slFrameAllocator(INT32 x, INT32 y, INT32 z, INT32 dtype, void *data)
         frame->dsize = mallocSize;
         frame->dtype = dtype;
         if (data) {
-            memcpy(frame->data, data, dataSize);
-        }
-        else {
+            memcpy(frame->data, data, mallocSize);
+        } else {
             memset(frame->data, 0x0, mallocSize);
         }
     }

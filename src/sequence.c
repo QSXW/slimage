@@ -32,15 +32,26 @@ void cspush(CharSequence **_cs, const BYTE *_s)
     if (cs->data != NULL)
     {
         cs->next = CharSequenceAllocator();
+        if (!(cs->next))
+        {
+            return;
+        }
         cs->threshhold++;
         cs = cs->next;
     }
 
     size = cslen(_s);
-    cs->data = (BYTE *)malloc(size + 1);
-    memcpy(cs->data, _s, size + 1);
-    *(cs->data + size) = '\0';
-    cs->size = size;
+    if (size != 0)
+    {
+        cs->data = (BYTE *)malloc(size + 1);
+        if (!(cs->data))
+        {
+            return;
+        }
+        memcpy(cs->data, _s, size + 1);
+        *(cs->data + size) = '\0';
+        cs->size = size;
+    }
 
     if ((*_cs)->threshhold > 12)
     {
@@ -67,6 +78,10 @@ void CharSequencePushStack(CharSequence **_cs, const void *_s, size_t size)
     }
 
     cs->data = (BYTE *)malloc(size);
+    if (!(cs->data))
+    {
+        return;
+    }
     memcpy(cs->data, _s, size);
     *(cs->data + size) = '\0';
     cs->size = size;
@@ -113,6 +128,7 @@ CharSequence *cscopy(CharSequence *_cs)
     if ((cs = CharSequenceAllocator()))
     {
         cs->data = (BYTE *)malloc(cssize(_cs) + 1);
+        if (!(cs->data)) { return cs; }
         while (_cs)
         {
             memcpy(cs->data + cs->size, _cs->data, _cs->size);

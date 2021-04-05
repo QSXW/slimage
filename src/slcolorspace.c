@@ -1,12 +1,11 @@
-#include <slcolorspace.h>
+#include "slcolorspace.h"
 
 Frame slRGBToYCbCr(Frame rgb)
 {
     Frame ycbcr;
-    INT32 offset;
     BYTE *R, *G,  *B;
     BYTE *Y, *CB, *CR;
-    DWORD ci, size;
+    size_t ci, size, offset;
 
     if ((offset = slDataTypeSize(rgb->dtype)) != SLFRAME_DTYPE_BYTE)
     {
@@ -34,48 +33,72 @@ Frame slRGBToYCbCr(Frame rgb)
     return ycbcr;
 }
 
+void slYCbCrToRGB_AVX(float **ycbcr, float **rgb, size_t size)
+{
+    const float constants[] = { 128.0, 1.0 / 255.0 };
+
+    size_t i, j;
+    __m256 ycbcr_register[3];
+    __m256 rgb_register[3];
+    __m256 luminance_portion[slcolorspace_luminamce_table_length];
+    __m256 constants_register[sizeof(constants) / sizeof(constants[0])];
+
+    constants_register[0] = _mm256_broadcast_ss(constants + 0);
+    constants_register[1] = _mm256_broadcast_ss(constants + 1);
+    for (i = 0; i < slcolorspace_luminamce_table_length; i++)
+    {
+        luminance_portion[i] = _mm256_broadcast_ss(slcolorspace_luminance_table + i);
+    }
+    for (i = 0; i < size; i += (sizeof(__m256) / sizeof(float)))
+    {
+        for (j = 0; j < 3; j++)
+        {
+            ycbcr_register[j] = _mm256_loadu_ps(ycbcr[j] + i);
+            rgb_register[j] = _mm256_loadu_ps(rgb[j] + i);
+        }
+        rgb_register[0] = _mm256_add_ps(ycbcr_register[0], _mm256_mul_ps(_mm256_sub_ps(ycbcr_register[2], constants_register[0]), luminance_portion[0]));
+        rgb_register[2] = _mm256_add_ps(ycbcr_register[0], _mm256_mul_ps(_mm256_sub_ps(ycbcr_register[1], constants_register[0]), luminance_portion[1]));
+        rgb_register[1] = _mm256_mul_ps(_mm256_sub_ps(_mm256_sub_ps(ycbcr_register[0], _mm256_mul_ps(luminance_portion[4], rgb_register[2])), _mm256_mul_ps(luminance_portion[3], rgb_register[0])), luminance_portion[2]);
+        for (j = 0; j < 3; j++)
+        {
+            _mm256_storeu_ps(rgb[j] + i, _mm256_mul_ps(rgb_register[j], constants_register[1]));
+        }
+    }
+}
+
 Frame slYCbCrToRGB(Frame ycbcr)
 {
     Frame rgb;
-    INT32 offset;
-    BYTE *R, *G,  *B;
-    BYTE *Y, *CB, *CR;
-    DWORD i, size;
+    float *srcptr[3];
+    float *dstptr[3];
+    INT32 i;
 
     slAssert(
-        (ycbcr) &&
-        (ycbcr->dims == 0x3) &&
-        (rgb = slFrameAllocator(ycbcr->cols, ycbcr->row, ycbcr->dims, SLFRAME_DTYPE_BYTE, NULL)),
+        (rgb = slFrameAllocator(ycbcr->cols, ycbcr->row, ycbcr->dims, ycbcr->dtype, NULL)),
         SLEXCEPTION_NULLPOINTER_REFERENCE,
         NULL
     );
-    offset = slDataTypeSize(SLFRAME_DTYPE_BYTE);
-    i = 0;
-    size = rgb->size;
-
-    slRGBToFrameBinder(R, G,  B, rgb,   offset);
-    slRGBToFrameBinder(Y, CB, CR, ycbcr, offset);
-    YCBCRTORGB(Y, CB, CR, R, G, B,  i, size, offset);
-
+    for (i = 0; i < rgb->dims; i++)
+    {
+        srcptr[i] = ((float *)(ycbcr->data)) + ycbcr->size * i;
+        dstptr[i] = ((float *)(rgb->data)) + ycbcr->size * i;
+    }
+    slYCbCrToRGB_AVX(srcptr, dstptr, ycbcr->size);
     return rgb;
 }
 
-BYTE *slUpSamplingBlurFilter(BYTE *img, INT32 width, INT32 height) {
+float *slUpSamplingBlurFilter(float *img, INT32 width, INT32 height) {
     
     INT32 y0, y1;
     INT32 x0, x1;
     INT32 dx, dy;
     INT32 ix, iy;
     
-    BYTE *imgOut = NULL;
+    float *outputImage = NULL;
 
-    size_t imageSize = width * height;
-    slAssert(
-        imgOut = (BYTE *)malloc(imageSize),
-        SLEXCEPTION_MALLOC_FAILED,
-        NULL
-    );
-
+    INT32 imageSize = width * height;
+    slAllocateMemory(outputImage, float*, imageSize);
+    slAssert(outputImage, SLEXCEPTION_MALLOC_FAILED, NULL);
     for (y0 = 0; y0 < height; y0 += 2)
     {
         for (x0 = 0; x0 < width; x0 += 2)
@@ -88,23 +111,19 @@ BYTE *slUpSamplingBlurFilter(BYTE *img, INT32 width, INT32 height) {
                     dx = 4 * ix - 2;
                     x1 = slMin(width - 1,  slMax(0, x0 + dx));
                     y1 = slMin(height - 1, slMax(0, y0 + dy));
-                    imgOut[(y0 + iy) * width + x0 + ix] = (9.0f * img[y0 * width + x0] 
-                                                        +  3.0f * img[y0 * width + x1]
-                                                        +  3.0f * img[y1 * width + x0]
-                                                        +  1.0f * img[y1 * width + x1])
-                                                        /  16.0f;
+                    outputImage[(y0 + iy) * width + x0 + ix] = (float)(slColourSampleClamp(((9.0f * img[y0 * width + x0] + 3.0f * img[y0 * width + x1] + 3.0f * img[y1 * width + x0] + 1.0f * img[y1 * width + x1]) / 16.0f), 0, 255));
                 }
             }
         }
     }
 
-  return imgOut;
+    return outputImage;
 }
 
-INT32 slChromaUpsampling420(Frame frame, BYTE *Cb, BYTE *Cr)
+INT32 slChromaUpsampling420(Frame frame, float *Cb, float *Cr)
 {
-    BYTE *srcCb, *srcCr;
-    BYTE *dstCb, *dstCr;
+    float *srcCb, *srcCr;
+    float *dstCb, *dstCr;
 
     INT32 iy, ix;
     INT32 height;
@@ -116,7 +135,7 @@ INT32 slChromaUpsampling420(Frame frame, BYTE *Cb, BYTE *Cr)
 
     srcCb = Cb;
     srcCr = Cr;
-    dstCb = frame->data + frame->size;
+    dstCb = (float *)(frame->data) + frame->size;
     dstCr = dstCb + frame->size;
 
     horizontalPadding = slIsEven(width) ? 0 : 1;
@@ -151,8 +170,8 @@ INT32 slChromaUpsampling420(Frame frame, BYTE *Cb, BYTE *Cr)
         srcCr += horizontalPadding;
     }
 
-    dstCb = slUpSamplingBlurFilter(frame->data + 0x1 * frame->size, frame->cols, frame->row);
-    dstCr = slUpSamplingBlurFilter(frame->data + 0x2 * frame->size, frame->cols, frame->row);
+    dstCb = slUpSamplingBlurFilter(((float *)frame->data) + 0x1 * frame->size, frame->cols, frame->row);
+    dstCr = slUpSamplingBlurFilter(((float *)frame->data) + 0x2 * frame->size, frame->cols, frame->row);
 
     memcpy(frame->data + 0x1 * frame->size, dstCb, frame->size);
     memcpy(frame->data + 0x2 * frame->size, dstCr, frame->size);
@@ -163,10 +182,10 @@ INT32 slChromaUpsampling420(Frame frame, BYTE *Cb, BYTE *Cr)
     return 0;
 }
 
-INT32 slChromaUpsampling422(Frame frame, BYTE *Cb, BYTE *Cr)
+INT32 slChromaUpsampling422(Frame frame, float *Cb, float *Cr)
 {
-    BYTE *srcCb, *srcCr;
-    BYTE *dstCb, *dstCr;
+    float *srcCb, *srcCr;
+    float *dstCb, *dstCr;
 
     INT32 iy, ix;
     INT32 height;
@@ -178,7 +197,7 @@ INT32 slChromaUpsampling422(Frame frame, BYTE *Cb, BYTE *Cr)
 
     srcCb = Cb;
     srcCr = Cr;
-    dstCb = frame->data + frame->size;
+    dstCb = (float *)(frame->data) + frame->size;
     dstCr = dstCb + frame->size;
 
     horizontalPadding = slIsEven(width) ? 0 : 1;
@@ -198,8 +217,8 @@ INT32 slChromaUpsampling422(Frame frame, BYTE *Cb, BYTE *Cr)
         srcCr += horizontalPadding;
     }
 
-    dstCb = slUpSamplingBlurFilter(frame->data + 0x1 * frame->size, frame->cols, frame->row);
-    dstCr = slUpSamplingBlurFilter(frame->data + 0x2 * frame->size, frame->cols, frame->row);
+    dstCb = slUpSamplingBlurFilter(((float *)frame->data) + 0x1 * frame->size, frame->cols, frame->row);
+    dstCr = slUpSamplingBlurFilter(((float *)frame->data) + 0x2 * frame->size, frame->cols, frame->row);
 
     memcpy(frame->data + 0x1 * frame->size, dstCb, frame->size);
     memcpy(frame->data + 0x2 * frame->size, dstCr, frame->size);
@@ -241,7 +260,7 @@ Frame slDefaultToRGBA(Frame frame)
     size_t size;
 
     slAssert(
-        (dst = slFrameAllocator(frame->cols, frame->row, 4, frame->dtype, NULL)),
+        (dst = slFrameAllocator(frame->cols, frame->row, 4, SLFRAME_DTYPE_BYTE, NULL)),
         SLEXCEPTION_MALLOC_FAILED,
         NULL
     );
@@ -249,9 +268,9 @@ Frame slDefaultToRGBA(Frame frame)
 
     for (i = 0, size = frame->size; i < size; i++, color++)
     {
-        color->r = frame->data[i];
-        color->g = frame->data[i + size * 1];
-        color->b = frame->data[i + size * 2];
+        color->r = (BYTE)slColourSampleClamp(((float *)frame->data)[i] * 255, 0, 255);
+        color->g = (BYTE)slColourSampleClamp(((float *)frame->data)[i + size * 1] * 255, 0, 255);
+        color->b = (BYTE)slColourSampleClamp(((float *)frame->data)[i + size * 2] * 255, 0, 255);
         color->a = ~0;
     }
     ret = slFlip(dst);

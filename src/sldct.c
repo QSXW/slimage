@@ -1,6 +1,6 @@
-#include <sldct.h>
+#include "sldct.h"
 
-#ifdef _X86INTRIN_H_INCLUDED
+#if defined( _X86INTRIN_H_INCLUDED ) || defined ( _MSC_VER )
 float *slLevelDown(float *sequence, size_t size, int precision)
 {
     __m256 ymm0;
@@ -11,7 +11,7 @@ float *slLevelDown(float *sequence, size_t size, int precision)
     float level;
     size_t iter0;
     
-    level =  (int)slPower2(precision - 1);
+    level =  (float)slPower2(precision - 1);
     ymm2 = _mm256_broadcast_ss(&level);
     for (iter0 = 0, sequenceptr = sequence; iter0 < size; iter0 += SLJPEG_LENGTH_PER_M256)
     {
@@ -33,9 +33,9 @@ float *slLevelUp(float *sequence, size_t size, int precision)
     float  *sequenceptr;
     float  level;
     size_t iter0;
-    INT32  iter1;
+    size_t  iter1;
     
-    level =  (int)slPower2(precision - 1);
+    level =  (float)slPower2(precision - 1);
     ymm2 = _mm256_broadcast_ss(&level);
     for (iter0 = 0, iter1 = 0, sequenceptr = sequence; iter0 < size; iter0 += SLJPEG_LENGTH_PER_M256, iter1 = 0)
     {
@@ -43,7 +43,7 @@ float *slLevelUp(float *sequence, size_t size, int precision)
         ymm1 = _mm256_add_ps(ymm0, ymm2);
         while (iter1 < SLJPEG_LENGTH_PER_M256)
         {
-            *sequenceptr++ = slColourSampleClamp(ymm1[iter1], 0, 255);
+            *sequenceptr++ = slColourSampleClamp(_mm256_ref_ps(ymm1)[iter1], 0, 255);
             iter1++;
         }
     }
@@ -54,11 +54,11 @@ float *slLevelUp(float *sequence, size_t size, int precision)
 INT32 slFastForwardDiscreteConsineTransfrom64(float *src, float *dst, INT32 offset)
 {
     const float constants[] = { 0.0, 0.25, 1.0 };
-    INT32 dctMapIndex;
-    INT32 iter, u, v;
+    size_t dctMapIndex;
+    size_t iter, u, v;
     float c;
     float *dstptr, *srcptr;
-    float *sum; 
+    float sum[64]; 
     
     __m256 ymm0;
     __m256 ymm1;
@@ -70,16 +70,14 @@ INT32 slFastForwardDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
 
     dstptr = dst;
     dctMapIndex = 0;
-    c = 1.0 / sqrt(2.0);
-    sum = (float *)malloc(SLJPEG_LENGTH_PER_M256 * sizeof(sum));
-
+    c = (float)(1.0 / sqrt(2.0));
     ymm3 = _mm256_broadcast_ss(constants + 1);
     ymm4 = _mm256_broadcast_ss(constants + 2);
-    ymm4[0] = c;
+    _mm256_ref_ps(ymm4)[0] = c;
 
     for (u = 0; u < SLJPEG_LENGTH_PER_M256; u++)
     {
-        memset(sum, 0x0, SLJPEG_LENGTH_PER_M256 * sizeof(float));
+        memset(sum, 0x0, 64 * sizeof(float));
         ymm5 = _mm256_broadcast_ss(((u) ? (constants + 2) : (&c)));
         for (v = 0; v < SLJPEG_LENGTH_PER_M256; v++)
         {
@@ -92,7 +90,7 @@ INT32 slFastForwardDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
             }
             for (iter = 0; iter < SLJPEG_LENGTH_PER_M256; iter++)
             {
-                sum[v] += ymm2[iter];
+                sum[v] += _mm256_ref_ps(ymm2)[iter];
             }
         }
         ymm6 = _mm256_loadu_ps(sum);
@@ -100,7 +98,6 @@ INT32 slFastForwardDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
         _mm256_storeu_ps(dstptr, ymm6);
         dstptr += SLJPEG_LENGTH_PER_M256;
     }
-    slReleaseAllocatedMemory(sum);
 
     return 0;
 }
@@ -108,11 +105,11 @@ INT32 slFastForwardDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
 INT32 slFastInverseDiscreteConsineTransfrom64(float *src, float *dst, INT32 offset)
 {
     const float constants[] = { 0.0, 0.25, 1.0 };
-    INT32 dctMapIndex;
-    INT32 iter;
-    INT32 u, v;
+    size_t dctMapIndex;
+    size_t iter;
+    size_t u, v;
     float *dstptr, *srcptr;
-    float *sum;
+    float sum[64];
 
     __m256 ymm0;
     __m256 ymm1;
@@ -122,13 +119,11 @@ INT32 slFastInverseDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
 
     dstptr = dst;
     dctMapIndex = 0;
-    sum = (float *)malloc(SLJPEG_LENGTH_PER_M256 * sizeof(sum));
-
     ymm3 = _mm256_broadcast_ss(constants + 1);
 
     for (u = 0; u < SLJPEG_LENGTH_PER_M256; u++)
     {
-        memset(sum, 0x0, SLJPEG_LENGTH_PER_M256 * sizeof(float));
+        memset(sum, 0x0, 64 * sizeof(float));
         for (v = 0; v < SLJPEG_LENGTH_PER_M256; v++)
         {
             ymm2 = _mm256_broadcast_ss(constants);
@@ -140,7 +135,7 @@ INT32 slFastInverseDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
             }
             for (iter = 0; iter < SLJPEG_LENGTH_PER_M256; iter++)
             {
-                sum[v] += ymm2[iter];
+                sum[v] += _mm256_ref_ps(ymm2)[iter];
             }
         }
         ymm4 = _mm256_loadu_ps(sum);
@@ -148,14 +143,13 @@ INT32 slFastInverseDiscreteConsineTransfrom64(float *src, float *dst, INT32 offs
        _mm256_storeu_ps(dstptr, ymm4);
        dstptr += SLJPEG_LENGTH_PER_M256;
     }
-    slReleaseAllocatedMemory(sum);
 
     return 0;
 }
 
 void slUniformQuantizer(float *svu, const float *qvu)
 {
-    int iteri;
+    size_t iteri;
 
     __m256 ymm0;
     __m256 ymm1;

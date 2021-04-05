@@ -1,7 +1,7 @@
-#include <slimage.h>
-#include <slshader.h>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include "slimage.h"
+#include "slshader.h"
+#include "glad/glad.h"
+#include "GLFW/glfw3.h"
 
 INT32 ImageFormat(const DWORD *formatID) 
 {
@@ -9,6 +9,7 @@ INT32 ImageFormat(const DWORD *formatID)
     const BYTE *type;
     
     type = (const BYTE *)formatID;
+    sign = 0x0;
     switch (*type) 
     {
         case SLIMAGE_ID_BMP_BEG:
@@ -69,7 +70,7 @@ INT32 ImageWrite(const char *filePath, Frame frame, INT8 monochorome, INT32 form
         if (monochorome) { frame->dims = 1; }
         if (!(cs = CharSequenceAllocator()))
         {
-            // #1114
+            return SLEXIT_FAILURE;
         }
         switch (format)
         {
@@ -84,10 +85,6 @@ INT32 ImageWrite(const char *filePath, Frame frame, INT8 monochorome, INT32 form
         fwrite(cs->data, cs->size, 1, fp);
         fclose(fp);
     }
-    else
-    {
-        // #1001: Cannot open file
-    }
     
     return 0;
 }
@@ -97,6 +94,7 @@ Frame ImageResize(Frame src, float widthRatio, float heightRatio, INT32 width, I
     Frame dst;
     INT32 (*interplotatefuncptr)(Frame, Frame, float, float);
 
+    dst = NULL;
     if (width && height)
     {
         widthRatio  = (float)width / (float)src->cols;
@@ -109,7 +107,7 @@ Frame ImageResize(Frame src, float widthRatio, float heightRatio, INT32 width, I
     else
     {
         slAssert(
-            dst = slFrameAllocator(floor(src->cols * widthRatio), floor(src->row * heightRatio), src->dims, src->dtype, NULL),
+            dst = slFrameAllocator((INT32)floor(((double)(src->cols) * (double)widthRatio)), (INT32)floor(((double)(src->row) * (double)heightRatio)), src->dims, src->dtype, NULL),
             SLEXCEPTION_NULLPOINTER_REFERENCE,
             NULL
         );
@@ -168,12 +166,12 @@ INT32 ImageShow(Frame frame)
     if (width > mode->width && slMax(width, height) == width)
     {
         width = mode->width - 120;
-        height *=  ((float)width / frame->cols);
+        height *=  (int)((float)width / frame->cols);
     }
     else if (height > mode->height && slMax(width, height) == height)
     {
         height = mode->height - 120;
-        width *=  ((float)height / frame->row);
+        width *=  (int)((float)height / frame->row);
     }
 
     RGBFrame = slDefaultToRGBA(frame);

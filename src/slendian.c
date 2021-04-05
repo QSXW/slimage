@@ -1,4 +1,4 @@
-#include <slendian.h>
+#include "slendian.h"
 
 void MotorolaToIntelMode(void *src, void *dst, INT32 typeSize)
 {   

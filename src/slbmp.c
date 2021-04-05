@@ -1,4 +1,4 @@
-#include <slbmp.h>
+#include "slbmp.h"
 
 Frame BMPRead(const Stream stream)
 {
@@ -65,7 +65,7 @@ INT32 BMPDecoder(const struct _SLBMP *bmp, Frame *frame)
 INT32 BMPEncoder(Frame frame, CharSequence **charSequence)
 {
     BMP *bmp;
-    size_t dataSize, complement, fileSize;
+    DWORD dataSize, complement, fileSize;
     BYTE *redChannel, *greenChannel, *blueChannel, *colour;
     INT32 x, y, width, height;
 
@@ -97,30 +97,31 @@ INT32 BMPEncoder(Frame frame, CharSequence **charSequence)
             redChannel   = frame->data + frame->size - width;
             greenChannel = redChannel + frame->size;
             blueChannel  = greenChannel + frame->size;
+
+            colour = bmp->data;
+            for (y = 0; y < height; y++)
+            {
+                for (x = 0; x < width; x++)
+                {
+                    *colour++ = blueChannel[x];
+                    *colour++ = greenChannel[x];
+                    *colour++ = redChannel[x];
+                }
+                blueChannel -= x;
+                greenChannel -= x;
+                redChannel -= x;
+                colour += complement;
+            }
+            if (!(*charSequence))
+            {
+                *charSequence = CharSequenceAllocator();
+            }
+            CharSequencePushStack(charSequence, bmp, fileSize);
         }
         else
         {
             // #Incorrect RGB frame   
         }
-        colour = bmp->data;
-        for (y = 0; y < height; y++)
-        {
-            for (x = 0; x < width; x++)
-            {
-                *colour++ = blueChannel[x];
-                *colour++ = greenChannel[x];
-                *colour++ = redChannel[x];
-            }
-            blueChannel  -= x;
-            greenChannel -= x;
-            redChannel   -= x;
-            colour += complement;
-        }
-        if (!(*charSequence))
-        {
-            *charSequence = CharSequenceAllocator();
-        }
-        CharSequencePushStack(charSequence, bmp, fileSize);
     }
     else
     {
