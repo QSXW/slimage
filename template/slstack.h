@@ -7,38 +7,41 @@
 namespace slstack {
     template <class _Type>
     struct StackNode {
-        StackNode() : super(nullptr), sub(nullptr), data(nullptr) { }
+        StackNode() : chain{ nullptr, nullptr }, data(nullptr) { }
         ~StackNode() { if ((this->data)) { delete this->data; }}
         StackNode(StackNode<_Type> *, StackNode<_Type> *, const _Type &);
         StackNode(const _Type &);
         
-        StackNode<_Type> *super;
-        StackNode<_Type> *sub;
+        StackNode<_Type> *chain[2];
         _Type *data;
     };
 
     template <class _Type>
     StackNode<_Type>::StackNode(StackNode<_Type> *super, StackNode<_Type> *sub, const _Type &data)
-    : super(super), sub(sub), data(new _Type(data)) { }
+    : chain { super, sub }, data(new _Type(data)) { }
 
     template <class _Type>
     StackNode<_Type>::StackNode(const _Type &data)
-    : super(nullptr), sub(nullptr), data(new _Type(data)) { }
+    : chain{ nullptr, nullptr }, data(new _Type(data)) { }
 
     template <class _Type>
     class Stack {
     public:
-        Stack() : _top(nullptr), _length(0) { }
+        Stack() : _top(nullptr), _length(0), super(0), sub(1) { }
         ~Stack();
 
         Stack<_Type> &push(const _Type &);
         Stack<_Type> &pop(_Type &);
+        inline void reverse();
         inline bool empty() const;
         inline size_t size() const;
 
     private:
         StackNode<_Type> *_top;
+        StackNode<_Type> *_origin;
         size_t _length;
+        uint8_t super;
+        uint8_t sub;
     };
 
     template <class _Type>
@@ -47,11 +50,12 @@ namespace slstack {
         if (!(element->data)) { return *this; }
         if (!(this->_top)) {
             this->_top = element;
+            this->_origin = this->_top;
         }
         else {
-            this->_top->sub = element;
-            element->super = this->_top;
-            this->_top = this->_top->sub;
+            this->_top->chain[this->sub] = element;
+            element->chain[this->super] = this->_top;
+            this->_top = this->_top->chain[this->sub];
         }
         this->_length++;
         
@@ -62,10 +66,10 @@ namespace slstack {
     Stack<_Type> &Stack<_Type>::pop(_Type &data) {
         if ((this->_top)) {
             data = *(this->_top->data);
-            delete this->_top->sub;
-            this->_top = (this->_top->super) ? this->_top->super : nullptr;
+            delete this->_top->chain[sub];
+            this->_top = (this->_top->chain[this->super]) ? this->_top->chain[this->super] : nullptr;
             this->_length--;
-            (this->_top)?(this->_top->sub = nullptr):(nullptr);
+            (this->_top)?(this->_top->chain[this->sub] = nullptr):(nullptr);
         }
         return *this;
     }
@@ -73,9 +77,9 @@ namespace slstack {
     template <class _Type>
     Stack<_Type>::~Stack() {
         while (!this->empty()) {
-            if ((this->_top->super)) {
-                this->_top =  this->_top->super;
-                delete this->_top->sub;
+            if ((this->_top->chain[this->super])) {
+                this->_top =  this->_top->chain[this->super];
+                delete this->_top->chain[this->sub];
             }
             else {
                 delete this->_top;
@@ -91,8 +95,14 @@ namespace slstack {
     }
 
     template <class _Type>
+    void Stack<_Type>::reverse()  {
+        std::swap(this->_top, this->_origin);
+        std::swap(this->super, this->sub);
+    }
+
+    template <class _Type>
     size_t Stack<_Type>::size() const {
-        return (this->_length);
+        return !(this->_length);
     }
 }
 
