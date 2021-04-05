@@ -3,7 +3,7 @@
 #ifndef __SEQUENCE_H__
 #define __SEQUENCE_H__
 
-#include <typedefs.h>
+#include "typedefs.h"
 #include <malloc.h>
 #include <memory.h>
 #include <stdio.h>
@@ -17,8 +17,8 @@ extern "C" {
 typedef struct CharSequence 
 {
     size_t  size;
-    int     threshhold;
     struct  CharSequence *next;
+    int     threshhold;
     BYTE    *data;
 } CharSequence;
 

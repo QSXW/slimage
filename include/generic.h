@@ -16,6 +16,7 @@ extern "C" {
 #define slMod4(number) (((number) & 0x3))
 #define slMod(number, mod) (((number) & ((mod) - 1))) /* The fast modula operation for the power of 2 */
 #define slPower2(number) (((size_t)0x1) << (number))
+#define slSquare(number) ((number) * (number))
 
 #ifdef __cplusplus
 }

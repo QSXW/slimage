@@ -17,11 +17,14 @@
 #include <stdio.h>
 #endif
 
-#include <typedefs.h>
-#include <sequence.h>
-#include <stream.h>
+#include "typedefs.h"
+#include "sequence.h"
+#include "stream.h"
 #include <time.h>
 
+#if defined( __cplusplus )
+extern "C" {
+#endif /* __cplusplus */
 enum { FILE_NOT_FOUND = 0x194 };
 enum { JPEG_FORMAT_ERROR = 0x0, JPEG_OPEN_SUCCEED = 0x1, JPEG_SCAN_FAILED = 0x2 };
 #define MSG_JPEG_FORMAT_ERROR   "The input file was not of Jpeg format"
@@ -43,5 +46,8 @@ SaveLog(
     int flags
     );
 
+#if defined( __cplusplus )
+}
+#endif /* __cplusplus */
 #endif
 /* end of the file */

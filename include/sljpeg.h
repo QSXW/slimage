@@ -7,16 +7,16 @@
 #include <malloc.h>
 #include <memory.h>
 
-#include <typedefs.h>
-#include <slassert.h>
-#include <stream.h>
-#include <sequence.h>
-#include <liblog.h>
-#include <slendian.h>
-#include <slframe.h>
-#include <slcolorspace.h>
-#include <generic.h>
-#include <sldct.h>
+#include "typedefs.h"
+#include "slassert.h"
+#include "stream.h"
+#include "sequence.h"
+#include "liblog.h"
+#include "slendian.h"
+#include "slframe.h"
+#include "slcolorspace.h"
+#include "generic.h"
+#include "sldct.h"
 
 #define SL_DEBUG_ON_STATE 1
 #define SL_DEBUG_CODE_ON_STATE
@@ -198,7 +198,7 @@ typedef struct _SLSOF
 typedef struct  _SLScanComponent
 {
     BYTE index;
-    BYTE htSelector;;                            
+    BYTE htSelector;                       
 } ScanComponent;
 
 typedef struct  _SLSOS
@@ -339,7 +339,7 @@ typedef struct  _RawJpeg {
 
 #define slRawJpegSetNullptr(RAWJPEG) (memset(RAWJPEG, 0x0, sizeof(RawJpeg)))
 // #define slRawJpegReadSegment(segment, size, stream) do { if (!segment) { segment = (void *)malloc(size > sizeof(segment) ? size : sizeof(segment)); } if (segment) { ReadStream(segment, 0, size, stream); }} while (0)
-#define slRawJpegReadSegment(_DATATYPE, segment, size, stream) do { segment = ((_DATATYPE *)stream->pos); stream->pos += size; } while (0)
+#define slRawJpegReadSegment(_DATATYPE, segment, size, stream) do { segment = ((_DATATYPE *)(stream->pos)); (stream->pos) += (size); } while (0)
 #define slRawJpegAllocator(rawJpeg) slAllocateMemory(rawJpeg, RawJpeg*, sizeof(RawJpeg))
 #define DestroyRawJpeg(_jpeg) do { _DestroyRawJpeg(_jpeg); _jpeg = NULL; } while(0)
 #define slRawJpegGetSegmentLength(stream, length) do { length =  *(((WORD *)(stream->pos)) + 1); if (IsIntelMode()) { MotorolaToIntelMode2(&length); } length += CODE_SIZE; } while (0)
@@ -347,7 +347,7 @@ typedef struct  _RawJpeg {
 void
 _DestroyRawJpeg(
     RawJpeg *rawJpeg
-);
+    );
 Frame
 JpegRead(
     Stream fileStream
@@ -387,7 +387,7 @@ slJpegHuffTable
     BYTE *values,
     INT32 length
     );
-#define slJpegHuffTableDeallocator(jpegHuffTable) do { if (jpegHuffTable) { free(jpegHuffTable); }} while (0)
+#define slJpegHuffTableDeallocator(jpegHuffTable) slReleaseAllocatedMemory(jpegHuffTable)
 
 typedef struct _slJpegQuantizationTable {
     INT32 precision;
@@ -403,8 +403,8 @@ JpegQuantizationTable
 #define slJpegQuantizationTableDeallocator(jpegQuantizationTable) slReleaseAllocatedMemory(jpegQuantizationTable)
 
 typedef struct __slJpegEncodingProcedureCodeTable {
-    BYTE ehufco[SLJPEG_HUFFVALSIZE];
-    BYTE ehufsi[SLJPEG_HUFFVALSIZE];
+    INT32 ehufco[SLJPEG_HUFFVALSIZE];
+    INT32 ehufsi[SLJPEG_HUFFVALSIZE];
 } JpegEncodingHuffTable;
 
 typedef struct __slJpegComponent {
@@ -417,8 +417,8 @@ typedef struct __slJpegComponent {
     INT32  paddingMcux;
     INT32  paddingMcuy;
     size_t sampleCount;
-    DWORD  x;
-    DWORD  y;
+    INT32  x;
+    INT32  y;
     BYTE   qtIndex;
     BYTE   acIndex;
     BYTE   dcIndex;
@@ -457,7 +457,7 @@ slJpeg
 void __slJpegDeallocator(
     slJpeg *jpeg
     );
-#define slJpegDeallocator(jpeg) do{ if (jpeg) { __slJpegDeallocator(jpeg); jpeg = NULL; }}while(0)
+#define slJpegDeallocator(jpeg) slReleaseAllocatedMemory(jpeg)
 JpegEncodingHuffTable
 *JpegEncodingHuffTableAllocator(
     slJpegHuffTable *huffTable

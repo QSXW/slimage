@@ -3,11 +3,11 @@
 #ifndef __SLBMP_H__
 #define __SLBMP_H__
 
-#include <typedefs.h>
-#include <slassert.h>
-#include <slframe.h>
-#include <stream.h>
-#include <slendian.h>
+#include "typedefs.h"
+#include "slassert.h"
+#include "slframe.h"
+#include "stream.h"
+#include "slendian.h"
 
 #ifdef __cplusplus
 extern "C" {

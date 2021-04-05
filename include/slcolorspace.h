@@ -3,10 +3,10 @@
 #ifndef __SLCOLORSPACE_H__
 #define __SLCOLORSPACE_H__
 
-#include <typedefs.h>
-#include <slassert.h>
-#include <slframe.h>
-#include <generic.h>
+#include "typedefs.h"
+#include "slassert.h"
+#include "slframe.h"
+#include "generic.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,18 +27,28 @@ enum SLColorSpace {
 #endif
 
 #ifdef __CCIR_RECOMMEMDATION_601_1
-#define SLIMG_LUMARED   0.299
-#define SLIMG_LUMAGREEN 0.587
-#define SLIMG_LUMABLUE  0.114
+#define SLCOLORSPACE_LUMINANCE_RED   0.299
+#define SLCOLORSPACE_LUMINANCE_GREEN 0.587
+#define SLCOLORSPACE_LUMINANCE_BLUE  0.114
 #endif /* __CCIR_RECOMMEMDATION_601_1 */
 
 #ifdef __CCIR_RECOMMEMDATION_709
-#define SLIMG_LUMARED   0.2125
-#define SLIMG_LUMAGREEN 0.7157
-#define SLIMG_LUMABLUE  0.721
+#define SLCOLORSPACE_LUMINANCE_RED   0.2125
+#define SLCOLORSPACE_LUMINANCE_GREEN 0.7157
+#define SLCOLORSPACE_LUMINANCE_BLUE  0.721
 #endif /* __CCIR_RECOMMEMDATION_709 */
 
 #define slColourSampleClamp(sample, min, max) (((sample) < (min) ? (min) : (((sample) > max) ? (max) : (sample))))
+
+static const float slcolorspace_luminance_table[] = {
+    (2.0 - 2.0 * SLCOLORSPACE_LUMINANCE_RED),
+    (2.0 - 2.0 * SLCOLORSPACE_LUMINANCE_BLUE),
+    1.0 / SLCOLORSPACE_LUMINANCE_GREEN,
+    SLCOLORSPACE_LUMINANCE_RED,
+    SLCOLORSPACE_LUMINANCE_BLUE
+};
+
+#define slcolorspace_luminamce_table_length sizeof(slcolorspace_luminance_table) / sizeof(slcolorspace_luminance_table[0])
 
 typedef struct _RGBA {
     BYTE r;
@@ -48,16 +58,16 @@ typedef struct _RGBA {
 } slRGBA;
 
 #define RGBTOYCBCR( R, G, B, Y, CB, CR, startIndex, endIndex, offset) while (startIndex < endIndex) {\
-    *(Y) = SLIMG_LUMARED * (*(R)) +  SLIMG_LUMAGREEN * (*(G)) + SLIMG_LUMABLUE * (*(B));\
-    *(CB) = 128 + ( ((*(B)) - (*Y)) / (2 - 2 * SLIMG_LUMABLUE) );\
-    *(CR) = 128 + ( ((*(R)) - (*Y)) / (2 - 2 * SLIMG_LUMARED) );\
+    *(Y) = SLCOLORSPACE_LUMINANCE_RED * (*(R)) +  SLCOLORSPACE_LUMINANCE_GREEN * (*(G)) + SLCOLORSPACE_LUMINANCE_BLUE * (*(B));\
+    *(CB) = 128 + ( ((*(B)) - (*Y)) / (2 - 2 * SLCOLORSPACE_LUMINANCE_BLUE) );\
+    *(CR) = 128 + ( ((*(R)) - (*Y)) / (2 - 2 * SLCOLORSPACE_LUMINANCE_RED) );\
     Y += offset; CB += offset; CR += offset; R += offset; G += offset; B += offset; startIndex++;\
 }
 
 #define YCBCRTORGB( Y, CB, CR, R, G, B, startIndex, endIndex, offset) while (startIndex < endIndex) {\
-    *(R) = slColourSampleClamp( (*CR - 128) * (2 - 2 * SLIMG_LUMARED) + (*Y), 0, 255 );\
-    *(B) = slColourSampleClamp( (*CB - 128) * (2 - 2 * SLIMG_LUMABLUE) + (*Y), 0, 255);\
-    *(G) = slColourSampleClamp( ((*Y) - SLIMG_LUMABLUE * *(B) - SLIMG_LUMARED * (*(R))) / SLIMG_LUMAGREEN, 0, 255);\
+    *(R) = slColourSampleClamp( (*CR - 128) * (2 - 2 * SLCOLORSPACE_LUMINANCE_RED) + (*Y), 0, 255 );\
+    *(B) = slColourSampleClamp( (*CB - 128) * (2 - 2 * SLCOLORSPACE_LUMINANCE_BLUE) + (*Y), 0, 255);\
+    *(G) = slColourSampleClamp( ((*Y) - SLCOLORSPACE_LUMINANCE_BLUE * *(B) - SLCOLORSPACE_LUMINANCE_RED * (*(R))) / SLCOLORSPACE_LUMINANCE_GREEN, 0, 255);\
      Y += offset; CB += offset; CR += offset; R += offset; G += offset; B += offset; startIndex++;\
 }
 
@@ -71,15 +81,15 @@ Frame slYCbCrToRGB(
 INT32
 slChromaUpsampling422(
     Frame frame,
-    BYTE *Cb,
-    BYTE *Cr
+    float *Cb,
+    float *Cr
     );
 
 INT32
 slChromaUpsampling420(
     Frame frame,
-    BYTE *Cb,
-    BYTE *Cr
+    float *Cb,
+    float *Cr
     );
 
 Frame

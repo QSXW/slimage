@@ -4,12 +4,13 @@
 
 #include <math.h>
 
-#include <sljpeg.h>
-#include <slbmp.h>
-#include <sequence.h>
-#include <slframe.h>
-#include <slresize.h>
-#include <slcolorspace.h>
+#include "typedefs.h"
+#include "sljpeg.h"
+#include "slbmp.h"
+#include "sequence.h"
+#include "slframe.h"
+#include "slresize.h"
+#include "slcolorspace.h"
 
 #ifdef __cplusplus
 extern "C" {

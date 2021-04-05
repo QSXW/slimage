@@ -4,12 +4,15 @@
 #define __STREAM_H__
 
 #include <stdio.h>
-#include <typedefs.h>
-#include <liblog.h>
+#include "typedefs.h"
+#include "liblog.h"
 #include "sequence.h"
 
-#define STREAM_MBUF_PRESET_SIZE 41943040
+#if defined( __cplusplus )
+extern "C" {
+#endif /* __cplusplus */
 
+#define STREAM_MBUF_PRESET_SIZE 41943040
 #define PAUSE do{printf("Press any key to continue...");getchar();}while(0)
 #define BREAKBOINT while(0)
 
@@ -23,10 +26,10 @@ typedef struct  _Stream {
     size_t          fsize;
     BYTE            *pos;
     BYTE            *_mbuf;
-    Bool            readable;
-    Bool            writable;
     CharSequence    *fname;
     BYTE            *_end;
+    Bool            readable;
+    Bool            writable;
 } *Stream;
 
 #define ReadByte(_stream) ((_stream->_mbuf) ? _ReadByte(_stream) : fgetc(_stream->fp))
@@ -60,5 +63,7 @@ __CloseStream(
     Stream _stream
     );
 
-
+#if defined( __cplusplus )
+}
+#endif /* __cplusplus */
 #endif

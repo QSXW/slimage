@@ -4,15 +4,15 @@
 
 #include <math.h>
 
-#include <slframe.h>
-#include <slcolorspace.h>
+#include "slframe.h"
+#include "slcolorspace.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 #define slBicubicConvolutionKey (-0.5f)
-#define slNearestSample(sample, channel, width, x, y) do { sample = *(channel + y * width + x); } while (0)
+#define slNearestSample(sample, channel, width, x, y) do { sample = *(channel + (size_t)y * (size_t)width + x); } while (0)
 
 INT32
 slNearestInterpolateRGB(

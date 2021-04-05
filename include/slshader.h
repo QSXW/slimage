@@ -3,8 +3,8 @@
 #ifndef __SLSHADER_H__
 #define __SLSHADER_H__
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include "glad/glad.h"
+#include "GLFW/glfw3.h"
 
 const char *SL_DEFAULT_VERTEX_SHADER = "#version 330 core\n"
 	"layout (location = 0) in vec3 aPos;\n"

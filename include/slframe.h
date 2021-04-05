@@ -3,12 +3,17 @@
 #ifndef __SLFRAME_H__
 #define __SLFRAME_H__
 
-#include <slassert.h>
-#include <typedefs.h>
-
 #include <stdio.h>
 #include <malloc.h>
 #include <memory.h>
+
+#include "slassert.h"
+#include "typedefs.h"
+#include "generic.h"
+
+#if defined( __cplusplus )
+extern "C" {
+#endif /* __cplusplus */
 
 enum FrameDataType {
     SLFRAME_DTYPE_BYTE =  0x1u,
@@ -19,8 +24,8 @@ enum FrameDataType {
     SLFRAME_DTYPE_INT64,
     SLFRAME_DTYPE_DWORD,
     SLFRAME_DTYPE_QWORD,
-    SLFRAME_DTYPE_float,
-    SLFRAME_DTYPE_double
+    SLFRAME_DTYPE_FLOAT,
+    SLFRAME_DTYPE_DOUBLE
 };
 
 typedef struct _slFrame  {
@@ -65,5 +70,8 @@ static const size_t slFrameDataTypeSize[]= {
 #define slDataTypeSize(dtype) slFrameDataTypeSize[(dtype)]
 #define slFrameDeallocator(frame) slReleaseAllocatedMemory(frame)
 #define slRGBToFrameBinder(R, G, B, FRAME, offset) do { R = ((FRAME)->data); G = (R) + (((FRAME)->size) * offset); B = (G) + (((FRAME)->size) * offset); } while (0)
+#if defined( __cplusplus )
+}
+#endif /* __cplusplus */
 
 #endif /* __SLFRAME_H__ */

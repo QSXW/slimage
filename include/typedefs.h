@@ -3,13 +3,33 @@
 #ifndef __TYPEDEFS_H__
 #define __TYPEDEFS_H__
 
-#include <x86intrin.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
-#include "slassert.h"
 
-typedef void (*caller)();
+#if defined( _MSC_VER )
+#pragma warning(disable: 4200) /* for flexible array used in struct and union */
+#pragma warning(disable: 4255)
+#pragma warning(disable: 4305) /* initializing */
+#pragma warning(disable: 4706) /* assignment within conditional expression */
+#pragma warning(disable: 4820) /* padding for struct */
+#pragma warning(disable: 4920)
+#pragma warning(disable: 4996)
+#include <intrin.h>
+#define _mm256_ref_ps(ymm0) ymm0.m256_f32
+#else
+#include <x86intrin.h>
+#define _mm256_ref_ps(ymm0) ymm0
+#endif
+
+#include "slassert.h"
+#include "slchecksum.h"
+
+#if defined( __cplusplus )
+extern "C" {
+#endif
+
+typedef void (*caller)(void) ;
 typedef int8_t INT8;
 typedef int16_t INT16;
 typedef int32_t INT32;
@@ -31,15 +51,18 @@ typedef uint32_t DWORD;
 #define TRUE 1
 #endif
 
+#define SLEXIT_FAILURE -1
+#define SLEXIT_SUCCEED 0
+
 typedef struct _slBIT8 {
-    uint8_t b0 : 1;
-    uint8_t b1 : 1;
-    uint8_t b2 : 1;
-    uint8_t b3 : 1;
-    uint8_t b4 : 1;
-    uint8_t b5 : 1;
-    uint8_t b6 : 1;
-    uint8_t b7 : 1;
+    int b0 : 1;
+    int b1 : 1;
+    int b2 : 1;
+    int b3 : 1;
+    int b4 : 1;
+    int b5 : 1;
+    int b6 : 1;
+    int b7 : 1;
 } bit8, BIT8;
 
 typedef struct _slRATIONAL {
@@ -52,49 +75,30 @@ typedef struct _slSegmentationFault {
 } SegmentationFault;
 #define CallSegmentationFault() ((SegmentationFault *)0x0)->exception++
 
+/*  @checking of memory overflow within allocating and deallocating */
 #if defined( DEBUG ) || defined(_DEBUG)
-#define CRC32_GENERATOR_POLYNOMIAL 0x04C11DB7
-DWORD slCyclicRedundanceCheck32(const BYTE *message, INT32 length) {
-    INT32 i, j;
-    DWORD CRC, MSB;
-
-    CRC  =  ~0;
-    for (i = 0; i < length; i++)
-    {
-        CRC ^= (((DWORD)message[i]) << 24);
-        for (j = 0; j < 8; j++)
-        {
-            MSB = CRC >> 31;
-            CRC <<= 1;
-            CRC ^= (0 - MSB) & CRC32_GENERATOR_POLYNOMIAL;
-        }
-    }
-    
-    return CRC;
-}
-
+#define _alloc_type size_t
 #define _slAllocatedMemoryDebug(ptr, _Type, size) do {\
-    (ptr) = (_Type)malloc((size) + (sizeof(DWORD) * 2));\
+    (ptr) = (_Type)malloc((_alloc_type)(size) + (sizeof(_alloc_type) * 2));\
     if ((ptr)) {\
-        *((DWORD *)ptr) = (size);\
-        ptr = (_Type)(((DWORD *)ptr) + 1);\
-        *((DWORD *)(((BYTE *)ptr) + size)) = slCyclicRedundanceCheck32((const BYTE *)(((DWORD *)ptr) - 1), sizeof(DWORD));\
+        *((_alloc_type *)ptr) = (size);\
+        ptr = (_Type)(((_alloc_type *)ptr) + 1);\
+        *((_alloc_type *)(((BYTE *)ptr) + size)) = slCyclicRedundanceCheck32((const BYTE *)(((_alloc_type *)ptr) - 1), sizeof(_alloc_type));\
     }\
 } while (0)
 
 #define _slReleaseAllocatedMemoryDebug(ptr) do {\
-    if ((ptr) && (slCyclicRedundanceCheck32((const BYTE *)(((DWORD *)ptr) - 1), sizeof(DWORD)) ^ *((DWORD *)(((BYTE *)ptr) + *(((DWORD *)ptr) - 1)))))\
+    if ((ptr) && (slCyclicRedundanceCheck32((const BYTE *)(((_alloc_type *)ptr) - 1), sizeof(_alloc_type)) ^ *((_alloc_type *)(((BYTE *)ptr) + *(((_alloc_type *)ptr) - 1)))))\
     {\
         slLogMessage(__FILE__, __LINE__, __DATE__, __TIME__, Memory Overflow);\
         CallSegmentationFault();\
     }\
     else if ((ptr))\
     {\
-        free (((DWORD *)ptr) - 1);\
+        free (((_alloc_type *)ptr) - 1);\
         ptr = NULL;\
     }\
 } while (0)
-
 #endif
 
 #define slLogMessage(FILE, LINE, DATE, TIME, MESSAGE) fprintf(stderr,\
@@ -122,5 +126,9 @@ DWORD slCyclicRedundanceCheck32(const BYTE *message, INT32 length) {
 #define slAllocateMemory(ptr, _Type, size) _slAllocatedMemoryDebug(ptr, _Type, size)
 #define slReleaseAllocatedMemory(ptr) _slReleaseAllocatedMemoryDebug(ptr)
 #endif /* DEBUG*/
+
+#if defined( __cplusplus )
+}
+#endif /* __cplusplus */
 
 #endif
