@@ -97,7 +97,7 @@ float *slUpSamplingBlurFilter(float *img, INT32 width, INT32 height) {
     float *outputImage = NULL;
 
     INT32 imageSize = width * height;
-    slAllocateMemory(outputImage, float*, imageSize);
+    slAllocateMemory(outputImage, float*, sizeof(float) * imageSize);
     slAssert(outputImage, SLEXCEPTION_MALLOC_FAILED, NULL);
     for (y0 = 0; y0 < height; y0 += 2)
     {
@@ -153,8 +153,8 @@ INT32 slChromaUpsampling420(Frame frame, float *Cb, float *Cr)
         }
         if (++iy < height && slIsOdd(iy))
         {
-            memcpy(dstCb, dstCb - width, width);
-            memcpy(dstCr, dstCr - width, width);
+            memcpy(dstCb, dstCb - width, sizeof(float) * width);
+            memcpy(dstCr, dstCr - width, sizeof(float) * width);
             if (++iy < height)
             {
                 dstCb += width;
@@ -173,8 +173,8 @@ INT32 slChromaUpsampling420(Frame frame, float *Cb, float *Cr)
     dstCb = slUpSamplingBlurFilter(((float *)frame->data) + 0x1 * frame->size, frame->cols, frame->row);
     dstCr = slUpSamplingBlurFilter(((float *)frame->data) + 0x2 * frame->size, frame->cols, frame->row);
 
-    memcpy(frame->data + 0x1 * frame->size, dstCb, frame->size);
-    memcpy(frame->data + 0x2 * frame->size, dstCr, frame->size);
+    memcpy( ((float *)frame->data) + 0x1 * frame->size, dstCb, sizeof(float) * frame->size );
+    memcpy( ((float *)frame->data) + 0x2 * frame->size, dstCr, sizeof(float) * frame->size );
 
     slReleaseAllocatedMemory(dstCb);
     slReleaseAllocatedMemory(dstCr);
@@ -217,11 +217,11 @@ INT32 slChromaUpsampling422(Frame frame, float *Cb, float *Cr)
         srcCr += horizontalPadding;
     }
 
-    dstCb = slUpSamplingBlurFilter(((float *)frame->data) + 0x1 * frame->size, frame->cols, frame->row);
-    dstCr = slUpSamplingBlurFilter(((float *)frame->data) + 0x2 * frame->size, frame->cols, frame->row);
+    dstCb = slUpSamplingBlurFilter( ((float *)frame->data) + 0x1 * frame->size, frame->cols, frame->row );
+    dstCr = slUpSamplingBlurFilter( ((float *)frame->data) + 0x2 * frame->size, frame->cols, frame->row );
 
-    memcpy(frame->data + 0x1 * frame->size, dstCb, frame->size);
-    memcpy(frame->data + 0x2 * frame->size, dstCr, frame->size);
+    memcpy( ((float *)frame->data) + 0x1 * frame->size, dstCb, sizeof(float) * frame->size );
+    memcpy( ((float *)frame->data) + 0x2 * frame->size, dstCr, sizeof(float) * frame->size );
     slReleaseAllocatedMemory(dstCb);
     slReleaseAllocatedMemory(dstCr);
 

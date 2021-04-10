@@ -182,18 +182,7 @@ Frame JpegRead(Stream fileStream)
     return frame;
 }
 
-slJpegComponent *SLJpegComponentAllocator(BYTE capacity)
-{
-    slJpegComponent *component;
-
-    capacity = capacity ? (capacity * sizeof(slJpegComponent)) : sizeof(slJpegComponent);
-    slAllocateMemory(component, slJpegComponent *, capacity);
-    if ((component)) { memset(component, 0x0, capacity); }
-
-    return component;
-}
-
-slJpeg *slJpegAllocator()
+slJpeg *slJpegAllocator(const RawJpeg *rawJpeg, INT32 componentNumber)
 {
     slJpeg *jpeg;
 
@@ -201,6 +190,13 @@ slJpeg *slJpegAllocator()
     if ((jpeg))
     {
         memset(jpeg, 0x0, sizeof(slJpeg));
+        componentNumber = (componentNumber) ? (componentNumber * sizeof(slJpegComponent)) : sizeof(slJpegComponent);
+        slAllocateMemory(jpeg->components, slJpegComponent *, componentNumber);
+        if ((jpeg->components))
+        {
+            memset(jpeg->components, 0x0, componentNumber);
+            BindJpegToRawJpeg(jpeg, rawJpeg);
+        }
     }
 
     return jpeg;
@@ -333,7 +329,7 @@ INT32 slGenerateDecoderTable(slJpegHuffTable *huffTable)
     return 0;
 }
 
-INT32 SLJpegHuffTableBinder(slJpeg *jpeg, DHT *const *definedHuffTables)
+INT32 slJpegHuffTableBinder(slJpeg *jpeg, DHT *const *definedHuffTables)
 {
     size_t ci, cj;
     INT32  length, tableEnd, tableIndex;
@@ -403,7 +399,7 @@ JpegQuantizationTable *slJpegQuantizationTableAllocator(INT32 precision, BYTE *e
     return quantizationTable;
 }
 
-void SLJpegQuantizationTableBinder(slJpeg *jpeg, DQT *const *definedQuatizationTables)
+void slJpegQuantizationTableBinder(slJpeg *jpeg, DQT *const *definedQuatizationTables)
 {
     DQT    *definedQuatizationTable;
     INT32  ci, length, tableEnd, tableIndex;
@@ -465,43 +461,41 @@ INT32 slJpegComponentsBinder(slJpeg *jpeg, BYTE sofCode, FrameComponent *frameCo
         jpeg->isProgressive = TRUE;
 
     MCUNumber = 0;
-    if ((jpeg->components = SLJpegComponentAllocator(jpeg->colorComponent)))
+    for (ci = 0; ci < jpeg->colorComponent; ci++)
     {
-        for (ci = 0; ci < jpeg->colorComponent; ci++)
-        {
-            h = (0xf0 & frameComponent[ci].samplingFactor) >> 4;
-            v =  0x0F & frameComponent[ci].samplingFactor;
-            jpeg->dataPerMCU += h * v;
-            jpeg->components[ci].h = h;
-            jpeg->components[ci].v = v;
-            jpeg->components[ci].qtIndex = frameComponent[ci].qtSelector;
-            jpeg->maxHorizontalSamplingFactor = h > jpeg->maxHorizontalSamplingFactor ? h : jpeg->maxHorizontalSamplingFactor;
-            jpeg->maxVerticalSamplingFactor = v > jpeg->maxVerticalSamplingFactor ? v : jpeg->maxVerticalSamplingFactor;
-        }
-        for (ci = 0; ci < jpeg->colorComponent; ci++)
-        {
-            jpeg->components[ci].x = (INT32)ceil((double)jpeg->width * ((float)jpeg->components[ci].h / (float)jpeg->maxHorizontalSamplingFactor));
-            jpeg->components[ci].y = (INT32)ceil((double)jpeg->height * ((float)jpeg->components[ci].v / (float)jpeg->maxVerticalSamplingFactor));
-
-            jpeg->components[ci].paddingx = slMod8(jpeg->components[ci].x) ? 8 - slMod8(jpeg->components[ci].x) : 0;
-            jpeg->components[ci].paddingy = slMod8(jpeg->components[ci].y) ? 8 - slMod8(jpeg->components[ci].y) : 0;
-
-            mcu = (jpeg->components[ci].x + jpeg->components[ci].paddingx) / 8;
-            jpeg->components[ci].paddingMcux = (mcu % jpeg->components[ci].h);
-            jpeg->components[ci].mcux = mcu + jpeg->components[ci].paddingMcux;;
-
-            mcu = (jpeg->components[ci].y + jpeg->components[ci].paddingy) / 8;
-            jpeg->components[ci].paddingMcuy = (mcu % jpeg->components[ci].v);
-            jpeg->components[ci].mcuy = mcu + jpeg->components[ci].paddingMcuy;;
-
-            MCUNumber = jpeg->components[ci].mcux  * jpeg->components[ci].mcuy;
-            jpeg->MCUNumber += MCUNumber;
-
-            jpeg->components[ci].sampleCount = ((size_t)MCUNumber) * 64;
-            jpeg->sampleCount += jpeg->components[ci].sampleCount;
-        }
-        jpeg->MCUNumber /= jpeg->dataPerMCU;
+        h = (0xf0 & frameComponent[ci].samplingFactor) >> 4;
+        v =  0x0F & frameComponent[ci].samplingFactor;
+        jpeg->dataPerMCU += h * v;
+        jpeg->components[ci].h = h;
+        jpeg->components[ci].v = v;
+        jpeg->components[ci].qtIndex = frameComponent[ci].qtSelector;
+        jpeg->maxHorizontalSamplingFactor = h > jpeg->maxHorizontalSamplingFactor ? h : jpeg->maxHorizontalSamplingFactor;
+        jpeg->maxVerticalSamplingFactor = v > jpeg->maxVerticalSamplingFactor ? v : jpeg->maxVerticalSamplingFactor;
     }
+    for (ci = 0; ci < jpeg->colorComponent; ci++)
+    {
+        jpeg->components[ci].x = (INT32)ceil((double)jpeg->width * ((float)jpeg->components[ci].h / (float)jpeg->maxHorizontalSamplingFactor));
+        jpeg->components[ci].y = (INT32)ceil((double)jpeg->height * ((float)jpeg->components[ci].v / (float)jpeg->maxVerticalSamplingFactor));
+
+        jpeg->components[ci].paddingx = slMod8(jpeg->components[ci].x) ? 8 - slMod8(jpeg->components[ci].x) : 0;
+        jpeg->components[ci].paddingy = slMod8(jpeg->components[ci].y) ? 8 - slMod8(jpeg->components[ci].y) : 0;
+
+        mcu = (jpeg->components[ci].x + jpeg->components[ci].paddingx) / 8;
+        jpeg->components[ci].paddingMcux = (mcu % jpeg->components[ci].h);
+        jpeg->components[ci].mcux = mcu + jpeg->components[ci].paddingMcux;;
+
+        mcu = (jpeg->components[ci].y + jpeg->components[ci].paddingy) / 8;
+        jpeg->components[ci].paddingMcuy = (mcu % jpeg->components[ci].v);
+        jpeg->components[ci].mcuy = mcu + jpeg->components[ci].paddingMcuy;;
+
+        MCUNumber = jpeg->components[ci].mcux  * jpeg->components[ci].mcuy;
+        jpeg->MCUNumber += MCUNumber;
+
+        jpeg->components[ci].sampleCount = ((size_t)MCUNumber) * 64;
+        jpeg->sampleCount += jpeg->components[ci].sampleCount;
+    }
+    jpeg->MCUNumber /= jpeg->dataPerMCU;
+    
 
     return 0;
 }
@@ -528,10 +522,10 @@ void BindJpegToRawJpeg(slJpeg *jpeg, const RawJpeg *rawJpeg)
     }
 
     /* Bind Huffman table */
-    SLJpegHuffTableBinder(jpeg, rawJpeg->_DHT);
+    slJpegHuffTableBinder(jpeg, rawJpeg->_DHT);
 
     /* Bind Quantization table */
-    SLJpegQuantizationTableBinder(jpeg, rawJpeg->_DQT);
+    slJpegQuantizationTableBinder(jpeg, rawJpeg->_DQT);
 }
 
 JpegEncodingHuffTable *JpegEncodingHuffTableAllocator(slJpegHuffTable *huffTable)
@@ -975,16 +969,16 @@ INT32 slJpegChromaUpSampling(Frame frame, slJpeg *jpeg)
 {
     float *cb, *cr;
 
-    slAllocateMemory(cb, float*, jpeg->components[1].sampleCount + 8);
-    slAllocateMemory(cr, float*, jpeg->components[2].sampleCount + 8);
+    slAllocateMemory(cb, float*, sizeof(float) * jpeg->components[1].sampleCount + 8);
+    slAllocateMemory(cr, float*, sizeof(float) * jpeg->components[2].sampleCount + 8);
     slAssert(
         (cb) && (cr),
         SLEXCEPTION_MALLOC_FAILED,
         -1
     );
 
-    memcpy(cb, frame->data + frame-> size * 0x1, jpeg->components[1].sampleCount);
-    memcpy(cr, frame->data + frame-> size * 0x2, jpeg->components[2].sampleCount);
+    memcpy( cb, ((float *)frame->data) + frame-> size * 0x1, sizeof(float) * jpeg->components[1].sampleCount );
+    memcpy( cr, ((float *)frame->data) + frame-> size * 0x2, sizeof(float) * jpeg->components[2].sampleCount );
 
     if (jpeg->components[0].h == 2 && jpeg->components[0].v == 2)
     {
@@ -1061,19 +1055,17 @@ Frame JpegDecodingProcess(const RawJpeg *rawJpeg, Stream stream)
     float **componentsPosition;
     float **componentsOffsetPosition;
 
+    // #1 Decoder setup
+    while (rawJpeg->next) { rawJpeg = rawJpeg->next; }
     slAssert (
            (rawJpeg->_SOF) 
         && (rawJpeg->_SOF->code[1] == SLJPEG_CODE_SOF0 || rawJpeg->_SOF->code[1] == SLJPEG_CODE_SOF1)
-        && (jpeg = slJpegAllocator()),
+        && (jpeg = slJpegAllocator(rawJpeg, rawJpeg->_SOF->componentNum)),
         SLEXCEPTION_NULLPOINTER_REFERENCE,
         NULL
     );
 
-    // #1 Decoder setup
-    while (rawJpeg->next) { rawJpeg = rawJpeg->next; }
     // #2 Up to here, the data of SOF0 and SOS should have been reached.
-    BindJpegToRawJpeg(jpeg, rawJpeg);
-
     // #3 Decode Scan
     slAllocateMemory(ZZSequence, float*, jpeg->sampleCount * sizeof(float));
     slAllocateMemory(componentsPosition, float **, jpeg->colorComponent * sizeof(float *));
@@ -1115,6 +1107,7 @@ Frame JpegDecodingProcess(const RawJpeg *rawJpeg, Stream stream)
     {
         slJpegChromaUpSampling(frame, jpeg);
     }
+
     rgbframe = slYCbCrToRGB(frame);
     slFrameDeallocator(frame);
     slJpegDeallocator(jpeg);
@@ -1282,30 +1275,13 @@ void slEncodeACCoefficientsWithSpectralSelection(INT32 *EOBRUN, INT32 spectralSe
     }
 }
 
+
+
 INT32 JpegEncodingProcess(Frame frame, CharSequence **cs)
 {
-    slJpeg *jpeg;
-    INT32 ci;
+    // slJpeg *jpeg;
 
-    slAssert(
-        jpeg = slJpegAllocator(),
-        SLEXCEPTION_NULLPOINTER_REFERENCE,
-        -1
-    );
-    slAssert(
-        jpeg->components = SLJpegComponentAllocator(frame->dims),
-        SLEXCEPTION_MALLOC_FAILED,
-        -1
-    );
-    
-    jpeg->width = frame->row;
-    jpeg->height = frame->cols; 
-    for (ci = 0; ci < frame->dims; ci++)
-    {
-        //jpeg->components[ci]->h = 
-    }
-
-    slBaselineEnCodingComponent(frame->data, jpeg->width, jpeg->height);
+    // slBaselineEnCodingComponent(frame->data, jpeg->width, jpeg->height);
     
 
     return 0;

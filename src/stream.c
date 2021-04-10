@@ -34,6 +34,22 @@ Stream NewStream(const char *fname, const int _mode)
     return stream;
 }
 
+Stream
+NewStreamFromeSequence(const BYTE *sequence, size_t size)
+{
+    Stream stream;
+    if ((stream = __NewStream()))
+    {
+        stream->_mbuf = (BYTE *)malloc(size + 1);
+        stream->_end = stream->_mbuf + size;
+        *stream->_end = '\0';
+        memcpy(stream->_mbuf, sequence, size);
+        stream->pos = stream->_mbuf;
+        stream->readable = TRUE;
+    }
+    return stream;
+}
+
 Stream __NewStream()
 {
     Stream stream;

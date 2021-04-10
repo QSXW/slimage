@@ -28,15 +28,15 @@ INT32 ImageFormat(const DWORD *formatID)
     return sign;
 }
 
-Frame ImageRead(const char *filename)
+Frame ImageRead(const char *filename, const BYTE *sequence, size_t size)
 {
     Frame   frame;
     Stream stream;
-
     INT32 format;
 
     frame = NULL;
-    if ((stream = NewStream(filename, READABLE | CACHED)))
+    stream = (filename) ? NewStream(filename, READABLE | CACHED) : NewStreamFromeSequence(sequence, size);
+    if ((stream))
     {
         format = ImageFormat((DWORD *)slStreamCurrentPosition(stream));
         switch (format)
@@ -166,12 +166,12 @@ INT32 ImageShow(Frame frame)
     if (width > mode->width && slMax(width, height) == width)
     {
         width = mode->width - 120;
-        height *=  (int)((float)width / frame->cols);
+        height = (int)((float)height * ((float)width / (float)frame->cols));
     }
     else if (height > mode->height && slMax(width, height) == height)
     {
         height = mode->height - 120;
-        width *=  (int)((float)height / frame->row);
+        width =  (int)((float)width * ((float)height / (float)frame->row));
     }
 
     RGBFrame = slDefaultToRGBA(frame);
