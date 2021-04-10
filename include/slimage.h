@@ -71,7 +71,9 @@ ImageFormat(
     );
 Frame
 ImageRead(
-    const char *filename
+    const char *filename,
+    const BYTE *sequence,
+    size_t size
 );
 INT32
 ImageWrite(

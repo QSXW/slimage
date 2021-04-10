@@ -44,6 +44,11 @@ NewStream(
     const char *filename,
     const int mode
     );
+Stream
+NewStreamFromeSequence(
+    const BYTE *sequence,
+    size_t size
+    );
 Stream 
 __NewStream();
 
